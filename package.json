@@ -1,0 +1,51 @@
+{
+  "name": "cosmos-delegation-js",
+  "version": "1.0.0",
+  "description": "Node API for Cosmos Delegation using Ledger Nano S/X",
+  "main": "./src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zondax/cosmos-delegation-js.git"
+  },
+  "keywords": [
+    "Ledger",
+    "Javascript",
+    "Tendermint",
+    "Cosmos",
+    "Delegation"
+  ],
+  "author": "ZondaX GmbH",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/zondax/cosmos-delegation-js/issues"
+  },
+  "homepage": "https://github.com/zondax/cosmos-delegation-js",
+  "dependencies": {
+    "@babel/runtime": "^7.4.4",
+    "axios": "^0.18.0",
+    "big.js": "^5.2.2",
+    "ledger-cosmos-js": "https://github.com/cosmos/ledger-cosmos-js"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.4",
+    "@babel/node": "^7.2.2",
+    "@babel/plugin-transform-runtime": "^7.4.4",
+    "@babel/preset-env": "^7.4.4",
+    "babel-jest": "^24.7.1",
+    "eslint": "^5.16.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.17.2",
+    "eslint-plugin-jest": "^22.5.1",
+    "jest": "^24.7.1"
+  },
+  "scripts": {
+    "build": "babel src --out-dir dist",
+    "serve": "node dist/server.js",
+    "test": "jest"
+  },
+  "moduleDirectories": [
+    "node_modules",
+    "src"
+  ]
+}

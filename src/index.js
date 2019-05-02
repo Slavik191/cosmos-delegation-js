@@ -51,10 +51,13 @@ CosmosDelegateTool.prototype.connect = async function () {
         .create_async(this.comm_timeout, this.transport_debug)
         .then(comm => new App(comm));
 
+    const version = await this.app.get_version();
+    const appInfo = await this.app.appInfo();
+    console.log(version);
+    console.log(appInfo);
+
     // TODO: Check error code
     // TODO: Check version number
-    // const version = await app.get_version();
-    // console.log(version);
 };
 
 function connectedOrThrow(cdt) {
@@ -132,8 +135,6 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
         balanceuAtom: '0',
     };
 
-    // TODO: improve error handling
-
     return axios.get(url).then((r) => {
         try {
             if (typeof r.data !== 'undefined' && typeof r.data.value !== 'undefined') {
@@ -145,10 +146,12 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
                 }
             }
         } catch (e) {
+            // TODO: improve error handling
             console.log('Error ', e, ' returning defaults');
         }
         return answer;
     }, (e) => {
+        // TODO: improve error handling
         console.log('Error ', e, ' returning defaults');
         return answer;
     });
@@ -179,21 +182,29 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
             const delegationsuAtoms = {};
             let totalDelegation = Big(0);
 
-            for (let i = 0; i < r.data.length; i += 1) {
-                const t = r.data[i];
-                const valAddr = t.validator_address;
+            try {
+                if (typeof r.data !== 'undefined' && r.data !== null) {
+                    for (let i = 0; i < r.data.length; i += 1) {
+                        const t = r.data[i];
+                        const valAddr = t.validator_address;
 
-                if (valAddr in validators) {
-                    const shares = Big(t.shares);
-                    const valData = validators[valAddr];
-                    const valTokens = valData.tokens;
-                    const valTotalShares = valData.totalShares;
-                    const tokens = shares.times(valTokens).div(valTotalShares);
-                    delegationsuAtoms[valAddr] = tokens.toString();
+                        if (valAddr in validators) {
+                            const shares = Big(t.shares);
+                            const valData = validators[valAddr];
+                            const valTokens = valData.tokens;
+                            const valTotalShares = valData.totalShares;
+                            const tokens = shares.times(valTokens).div(valTotalShares);
+                            delegationsuAtoms[valAddr] = tokens.toString();
 
-                    totalDelegation = totalDelegation.add(tokens);
+                            totalDelegation = totalDelegation.add(tokens);
+                        }
+                    }
                 }
+            } catch (e) {
+                // TODO: improve error handling
+                console.log('Error', e);
             }
+
             answer.delegationsuAtoms = delegationsuAtoms;
             answer.delegationsTotaluAtoms = totalDelegation.toString();
 

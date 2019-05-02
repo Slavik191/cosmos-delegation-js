@@ -13,6 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  ******************************************************************************* */
+// eslint-disable-next-line import/extensions,import/no-unresolved
 import CosmosDelegateTool from 'index.js';
 
 test('connect', async () => {
@@ -92,6 +93,28 @@ test('scan addresses', async () => {
     // expect(addrs[3].path).toEqual([44, 118, 1, 0, 3]);
 
     console.log(addrs);
+});
+
+
+test('scan and get balances', async () => {
+    const cdt = new CosmosDelegateTool();
+
+    // retrieving many public keys can be slow
+    jest.setTimeout(10000);
+
+    cdt.debug = true;
+    cdt.switchTransportToHID();
+
+    await cdt.connect();
+    expect(cdt.connected).toBe(true);
+    expect(cdt.lastError).toBe('No error');
+
+    const addrs = await cdt.scanAddresses(0, 0, 2, 3);
+    expect(addrs.length).toEqual(2);
+
+    const reply = await cdt.retrieveBalances(addrs);
+
+    console.log(reply);
 });
 
 test('sign tx', async () => {

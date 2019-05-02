@@ -43,6 +43,22 @@ test('get multiple accounts', async () => {
     expect(reply[1].balanceuAtom).toEqual('891');
 });
 
+test('get multiple accounts 2', async () => {
+    const cdt = new CosmosDelegateTool();
+
+    const addrs = [
+        { pk: '02117e3f0b7528e2b06670d5adcdae089a27d3e5d2f61bb53652397f31b97e59e3', path: [44, 118, 0, 0, 0], bech32: 'cosmos1vu7su5av76usjegnpdeqyxpnpknmtrlz9nzsnh' },
+        { pk: '021fde41bbaf3ca7567d8b9f0b6423cb4405f9897d175a826192af551bf30764f8', path: [44, 118, 0, 0, 1], bech32: 'cosmos1zt4tkl5y5mtq5u2wa4wm2z88dwu0pz258e6aqj' },
+        { pk: '020ed96fd39753bdcc0aab176e654165c7c86b597738a30e8b82202e84eef8f093', path: [44, 118, 0, 0, 2], bech32: 'cosmos1hkhu7msq5avuah83qdqrp9408hs8kk0slplvj9' },
+        { pk: '0398536942a89fe7a6f5dee1371ca309163952ec6c45f07d61c4a6c993db23373a', path: [44, 118, 0, 0, 3], bech32: 'cosmos1plsr5lx33hrwczau8cppvae0nqy5cj3rhug52y' },
+        { pk: '03bd0b280921e24c911389cf624eda6da93bacddbad13d23e8381e1f4d9b4966df', path: [44, 118, 0, 0, 4], bech32: 'cosmos1a69hjkgvm6raz0z7s6hpv4n7f3unhqt4h7rxm8' },
+        { pk: '0236db5773fedd060b582f9b42d838166bc6d37eeb1d1921a958634df0deab6896', path: [44, 118, 0, 0, 5], bech32: 'cosmos17xkagmer7mte7ycdqxda4a3xfun5pyjwvf5p69' }];
+
+    const reply = await cdt.retrieveBalances(addrs);
+    console.log(reply);
+});
+
+
 test('create delegate tx', async () => {
     const cdt = new CosmosDelegateTool();
 

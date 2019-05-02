@@ -42,6 +42,25 @@ test('get address', async () => {
     expect(addr.path).toEqual([44, 118, 0, 0, 0]);
 });
 
+test('get balance', async () => {
+    const cdt = new CosmosDelegateTool();
+
+    cdt.debug = true;
+    cdt.switchTransportToHID();
+
+    await cdt.connect();
+    expect(cdt.connected).toBe(true);
+    expect(cdt.lastError).toBe('No error');
+
+    const addr = await cdt.retrieveAddress(0, 0);
+    expect(addr.pk).toBe('034fef9cd7c4c63588d3b03feb5281b9d232cba34d6f3d71aee59211ffbfe1fe87');
+    expect(addr.bech32).toBe('cosmos1w34k53py5v5xyluazqpq65agyajavep2rflq6h');
+    expect(addr.path).toEqual([44, 118, 0, 0, 0]);
+
+    const accountInfo = await cdt.getAccountInfo(addr);
+    console.log(accountInfo);
+});
+
 test('scan addresses', async () => {
     const cdt = new CosmosDelegateTool();
 

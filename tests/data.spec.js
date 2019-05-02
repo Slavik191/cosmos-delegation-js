@@ -20,7 +20,7 @@ import CosmosDelegateTool from 'index.js';
 test('get account info', async () => {
     const cdt = new CosmosDelegateTool();
 
-    const addr = 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt';
+    const addr = { bech32: 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt' };
     const answer = await cdt.getAccountInfo(addr);
 
     expect(answer.sequence).toEqual('60');

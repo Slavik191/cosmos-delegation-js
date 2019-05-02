@@ -123,8 +123,8 @@ CosmosDelegateTool.prototype.retrieveValidators = async function () {
     return validators;
 };
 
-CosmosDelegateTool.prototype.getAccountInfo = async function (addrBech32) {
-    const url = `${this.resturl}/auth/accounts/${addrBech32}`;
+CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
+    const url = `${this.resturl}/auth/accounts/${addr.bech32}`;
 
     const answer = {
         sequence: '0',
@@ -135,11 +135,17 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addrBech32) {
     // TODO: improve error handling
 
     return axios.get(url).then((r) => {
-        answer.sequence = r.data.value.sequence;
-        answer.accountNumber = r.data.value.account_number;
-        const tmp = r.data.value.coins.filter(x => x.denom === 'uatom');
-        if (tmp.length > 0) {
-            answer.balanceuAtom = Big(tmp[0].amount).toString();
+        try {
+            if (typeof r.data !== 'undefined' && typeof r.data.value !== 'undefined') {
+                answer.sequence = r.data.value.sequence;
+                answer.accountNumber = r.data.value.account_number;
+                const tmp = r.data.value.coins.filter(x => x.denom === 'uatom');
+                if (tmp.length > 0) {
+                    answer.balanceuAtom = Big(tmp[0].amount).toString();
+                }
+            }
+        } catch (e) {
+            console.log('Error ', e, ' returning defaults');
         }
         return answer;
     }, (e) => {
@@ -153,7 +159,7 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addrBech32) {
 CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
     // Get all balances
     const requestsBalance = addressList.map(async (addr, index) => {
-        const answer = await this.getAccountInfo(addr.bech32);
+        const answer = await this.getAccountInfo(addr);
         return Object.assign({}, addressList[index], answer);
     });
 
@@ -211,14 +217,12 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
 
 // Creates a new staking tx based on the input parameters
 // this function expect that retrieve balances has been called before
-CosmosDelegateTool.prototype.txCreateDelegate = (txData) => {
-    return `{"account_number":"${txData.accountNumber}",`
+CosmosDelegateTool.prototype.txCreateDelegate = txData => `{"account_number":"${txData.accountNumber}",`
         + `{"chain_id":"${txData.chainId}",`
         + `"fee":{"amount":[],"gas":"${txData.gas}"},`
         + `"memo":"${txData.memo}",`
         + `"msgs":[{"delegator_addr":"${txData.delegatorAddr}","validator_addr":"${txData.validatorAddr}","value":{"amount":"${txData.amount}","denom":"uatom"}}],`
         + `"sequence":"${txData.sequence}"}`;
-};
 
 CosmosDelegateTool.prototype.txCreateUndelegate = (txData) => {
     throw new Error('Not implemented');

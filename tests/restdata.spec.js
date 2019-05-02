@@ -15,7 +15,19 @@
  ******************************************************************************* */
 import CosmosDelegateTool from 'index.js';
 
-test('get balance', async () => {
+// TODO: Improve these tests by mocking node rest responses
+
+test('get account info', async () => {
+    const cdt = new CosmosDelegateTool();
+
+    const addr = 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt';
+    const answer = await cdt.getAccountInfo(addr);
+
+    expect(answer.sequence).toEqual('60');
+    expect(answer.balanceuAtom.toString()).toEqual('891');
+});
+
+test('get multiple accounts', async () => {
     const cdt = new CosmosDelegateTool();
 
     const addrs = [
@@ -23,11 +35,12 @@ test('get balance', async () => {
         { bech32: 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt' },
     ];
 
-    await cdt.retrieveBalances(addrs);
+    const reply = await cdt.retrieveBalances(addrs);
 
-    // TODO: Improve this test by mocking node rest responses
-    expect(addrs[0].balanceuAtom.toString()).toEqual('68991123');
-    expect(addrs[1].balanceuAtom.toString()).toEqual('891');
+    console.log(reply);
+
+    expect(reply[0].balanceuAtom).toEqual('68991123');
+    expect(reply[1].balanceuAtom).toEqual('891');
 });
 
 // TODO: complete unit tests

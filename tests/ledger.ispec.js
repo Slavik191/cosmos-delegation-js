@@ -57,8 +57,8 @@ test('scan addresses', async () => {
     expect(addrs[0].bech32).toBe('cosmos1a07dzdjgjsntxpp75zg7cgatgq0udh3pcdcxm3');
     expect(addrs[0].path).toEqual([44, 118, 0, 0, 2]);
 
-    expect(addrs[3].pk).toBe('025b81522e146fc5ee19d101783a8db41ac510af55ab4b1bff713fdcb006eb6c69');
-    expect(addrs[3].bech32).toBe('cosmos1cd0a075ed869ml39d8xh574s8xc6v82e0jenlu');
+    expect(addrs[3].pk).toBe('033222fc61795077791665544a90740e8ead638a391a3b8f9261f4a226b396c042');
+    expect(addrs[3].bech32).toBe('cosmos1qvw52lmn9gpvem8welghrkc52m3zczyhlqjsl7');
     expect(addrs[3].path).toEqual([44, 118, 1, 0, 3]);
 
     console.log(addrs);

@@ -1,7 +1,10 @@
 const config = require('./jest.config');
 
 // Override default configuration
-config.testRegex = '\\.spec\\.js$';
+config.testMatch = [
+    '**/__tests__/**/*.[jt]s?(x)',
+    '**/?(*.)+(spec|test).[tj]s?(x)',
+];
 
 // eslint-disable-next-line no-console
 console.log('RUNNING UNIT TESTS');

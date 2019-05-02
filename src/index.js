@@ -47,7 +47,7 @@ CosmosDelegateTool.prototype.switchTransportToU2F = function () {
 // Detect when a ledger device is connected and verify the cosmos app is running.
 CosmosDelegateTool.prototype.connect = async function () {
     this.connected = true;
-    this.app = await comm_node
+    this.app = await this.comm
         .create_async(this.comm_timeout, this.transport_debug)
         .then(comm => new App(comm));
 
@@ -59,6 +59,10 @@ CosmosDelegateTool.prototype.connect = async function () {
 
 // Retrieve public key and bech32 address
 CosmosDelegateTool.prototype.retrieveAddress = async function (account, index) {
+    if (!this.connect()) {
+        throw new Error('Device is not connected');
+    }
+
     // TODO: error if not connected
 
     const answer = {};
@@ -90,52 +94,69 @@ CosmosDelegateTool.prototype.scanAddresses = async function (minAccount, maxAcco
     return answer;
 };
 
-// Retrieve atom balances from the network for a list of account
-// Retrieve delegated/not-delegated balances for each account
-CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
-    const answer = [];
-
-    // Get all validators
-    // TODO: cache
+CosmosDelegateTool.prototype.retrieveValidators = async function () {
     const url = `${this.resturl}/staking/validators`;
     const validators = {};
     const requestValidators = axios.get(url).then((r) => {
         for (let i = 0; i < r.data.length; i += 1) {
-            const valdata = {};
+            const validatorData = {};
             const t = r.data[i];
-            valdata.tokens = Big(t.tokens);
-            valdata.totalShares = Big(t.delegator_shares);
-            validators[t.operator_address] = valdata;
+            validatorData.tokens = Big(t.tokens);
+            validatorData.totalShares = Big(t.delegator_shares);
+            validators[t.operator_address] = validatorData;
         }
     }, (e) => {
         // TODO: improve error handling
-        console.log('Error', addr, e);
+        console.log('Error', e);
     });
-    await requestValidators;
 
-    // Get all balances
-    const requestsBalance = addressList.map((addr, index) => {
-        const url = `${this.resturl}/bank/balances/${addr.bech32}`;
-        return axios.get(url).then((r) => {
-            let balanceuAtom = Big(0);
-            for (let i = 0; i < r.data.length; i += 1) {
-                const t = r.data[i];
-                if (t.denom === 'uatom') {
-                    balanceuAtom = Big(t.amount).toString();
-                    break;
-                }
-            }
-            addressList[index].balanceuAtom = balanceuAtom;
-        }, (e) => {
-            // TODO: improve error handling
-            console.log('Error', addr, e);
-        });
+    await requestValidators;
+    return validators;
+};
+
+CosmosDelegateTool.prototype.getAccountInfo = async function (addrBech32) {
+    const url = `${this.resturl}/auth/accounts/${addrBech32}`;
+
+    const answer = {
+        sequence: '0',
+        balanceuAtom: '0',
+    };
+
+    // TODO: improve error handling
+
+    return axios.get(url).then((r) => {
+        answer.sequence = r.data.value.sequence;
+        const tmp = r.data.value.coins.filter(x => x.denom === 'uatom');
+        if (tmp.length > 0) {
+            answer.balanceuAtom = Big(tmp[0].amount).toString();
+        }
+        return answer;
+    }, (e) => {
+        console.log('Error ', e, ' returning defaults');
+        return answer;
     });
+};
+
+// Retrieve atom balances from the network for a list of account
+// Retrieve delegated/not-delegated balances for each account
+CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
+    // Get all balances
+    const requestsBalance = addressList.map(async (addr, index) => {
+        const answer = await this.getAccountInfo(addr.bech32);
+        return Object.assign({}, addressList[index], answer);
+    });
+
+    const validators = await this.retrieveValidators();
 
     // Get all delegations
     const requestsDelegations = addressList.map((addr, index) => {
         const url = `${this.resturl}/staking/delegators/${addr.bech32}/delegations`;
         return axios.get(url).then((r) => {
+            const answer = {
+                delegationsuAtoms: {},
+                delegationsTotaluAtoms: {},
+            };
+
             const delegationsuAtoms = {};
             let totalDelegation = Big(0);
 
@@ -154,28 +175,32 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
                     totalDelegation = totalDelegation.add(tokens);
                 }
             }
-            addressList[index].delegationsuAtoms = delegationsuAtoms;
-            addressList[index].delegationsTotaluAtoms = totalDelegation.toString();
+            answer.delegationsuAtoms = delegationsuAtoms;
+            answer.delegationsTotaluAtoms = totalDelegation.toString();
+
+            return answer;
         }, (e) => {
             // TODO: improve error handling
             console.log('Error', addr, e);
         });
     });
 
-    await Promise.all(requestsBalance);
-    await Promise.all(requestsDelegations);
-    console.log(addressList);
+    const balances = await Promise.all(requestsBalance);
+    const delegations = await Promise.all(requestsDelegations);
 
-    return answer;
+    const reply = [];
+    for (let i = 0; i < addressList.length; i++) {
+        reply.push(Object.assign({}, delegations[i], balances[i]))
+    }
+
+    return reply;
 };
 
 // Creates a new staking tx based on the input parameters
 CosmosDelegateTool.prototype.txCreate = async function () {
     // TODO: Prepare tx template
-    //
+    // TODO: sequence number + gas calculation
     // TODO: Create a delegate transaction
-    // gaiacli tx staking delegate cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 1000stake --generate-only
-    // https://github.com/luniehq/lunie/blob/8abb00ed42e35b8a9d1b2176ee67857bb4a02e37/test/unit/specs/store/json/txs.js#L225
     // TODO: Create a re-delegate transaction
     // TODO: Create an undelegate transaction
     return 'NA';
@@ -202,7 +227,7 @@ CosmosDelegateTool.prototype.txStatus = async function (txHash) {
         response = r.data;
     }, (e) => {
         // TODO: improve error handling
-        console.log('Error', addr, e);
+        console.log('Error', e);
     });
 
     await request;

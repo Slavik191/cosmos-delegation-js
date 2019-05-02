@@ -43,11 +43,29 @@ test('get multiple accounts', async () => {
     expect(reply[1].balanceuAtom).toEqual('891');
 });
 
-// TODO: complete unit tests
+test('create delegate tx', async () => {
+    const cdt = new CosmosDelegateTool();
+
+    const txData = {
+        accountNumber: 0,
+        chainId: 'testnet',
+        delegatorAddr: 'cosmos1qpd4xgtqmxyf9ktjh757nkdfnzpnkamny3cpzv',
+        validatorAddr: 'cosmosvaloper1zyp0axz2t55lxkmgrvg4vpey2rf4ratcsud07t',
+        amount: 10,
+        gas: 0,
+        memo: 'some funny message',
+        sequence: 0,
+    };
+
+    const unsignedTx = cdt.txCreateDelegate(txData);
+    console.log(unsignedTx);
+    expect(unsignedTx.length).toEqual(305);
+});
+
 test('get tx status', async () => {
     const cdt = new CosmosDelegateTool();
 
-    const txHash = '2F5A18C53E8120EB82C10BE62AB446C8B7B59629372580C5BB190AF0F7BAEC24'
+    const txHash = '2F5A18C53E8120EB82C10BE62AB446C8B7B59629372580C5BB190AF0F7BAEC24';
     const status = await cdt.txStatus(txHash);
 
     expect(status.height).toEqual('115588');

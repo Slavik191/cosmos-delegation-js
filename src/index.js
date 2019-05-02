@@ -17,7 +17,7 @@ import axios from 'axios';
 import Big from 'big.js';
 import {
     // eslint-disable-next-line camelcase
-    App, Tools, comm_u2f, comm_node,
+    App, comm_node, comm_u2f, Tools,
 } from 'ledger-cosmos-js';
 
 const defaultHrp = 'cosmos';
@@ -27,8 +27,8 @@ const CosmosDelegateTool = function () {
     this.comm = comm_u2f;
     this.connected = false;
     this.lastError = 'No error';
-    this.comm_timeout = 5000;
-    this.transport_debug = true;
+    this.comm_timeout = 45000;
+    this.transport_debug = false;
     this.resturl = 'https://stargate.cosmos.network';
 };
 
@@ -57,13 +57,22 @@ CosmosDelegateTool.prototype.connect = async function () {
     // console.log(version);
 };
 
-// Retrieve public key and bech32 address
-CosmosDelegateTool.prototype.retrieveAddress = async function (account, index) {
-    if (!this.connect()) {
+function connectedOrThrow(cdt) {
+    if (!cdt.connected) {
         throw new Error('Device is not connected');
     }
+}
 
-    // TODO: error if not connected
+// Returns a signed transaction ready to be relayed
+CosmosDelegateTool.prototype.txSign = async function (account, index, tx) {
+    connectedOrThrow(this);
+    const path = [44, 118, account, 0, index];
+    return this.app.sign(path, tx);
+};
+
+// Retrieve public key and bech32 address
+CosmosDelegateTool.prototype.retrieveAddress = async function (account, index) {
+    connectedOrThrow(this);
 
     const answer = {};
     const path = [44, 118, account, 0, index];
@@ -119,6 +128,7 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addrBech32) {
 
     const answer = {
         sequence: '0',
+        accountNumber: '0',
         balanceuAtom: '0',
     };
 
@@ -126,6 +136,7 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addrBech32) {
 
     return axios.get(url).then((r) => {
         answer.sequence = r.data.value.sequence;
+        answer.accountNumber = r.data.value.account_number;
         const tmp = r.data.value.coins.filter(x => x.denom === 'uatom');
         if (tmp.length > 0) {
             answer.balanceuAtom = Big(tmp[0].amount).toString();
@@ -149,7 +160,9 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
     const validators = await this.retrieveValidators();
 
     // Get all delegations
+    // eslint-disable-next-line no-unused-vars
     const requestsDelegations = addressList.map((addr, index) => {
+        // TODO: move to its own method
         const url = `${this.resturl}/staking/delegators/${addr.bech32}/delegations`;
         return axios.get(url).then((r) => {
             const answer = {
@@ -189,31 +202,36 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
     const delegations = await Promise.all(requestsDelegations);
 
     const reply = [];
-    for (let i = 0; i < addressList.length; i++) {
-        reply.push(Object.assign({}, delegations[i], balances[i]))
+    for (let i = 0; i < addressList.length; i += 1) {
+        reply.push(Object.assign({}, delegations[i], balances[i]));
     }
 
     return reply;
 };
 
 // Creates a new staking tx based on the input parameters
-CosmosDelegateTool.prototype.txCreate = async function () {
-    // TODO: Prepare tx template
-    // TODO: sequence number + gas calculation
-    // TODO: Create a delegate transaction
-    // TODO: Create a re-delegate transaction
-    // TODO: Create an undelegate transaction
-    return 'NA';
+// this function expect that retrieve balances has been called before
+CosmosDelegateTool.prototype.txCreateDelegate = (txData) => {
+    return `{"account_number":"${txData.accountNumber}",`
+        + `{"chain_id":"${txData.chainId}",`
+        + `"fee":{"amount":[],"gas":"${txData.gas}"},`
+        + `"memo":"${txData.memo}",`
+        + `"msgs":[{"delegator_addr":"${txData.delegatorAddr}","validator_addr":"${txData.validatorAddr}","value":{"amount":"${txData.amount}","denom":"uatom"}}],`
+        + `"sequence":"${txData.sequence}"}`;
 };
 
-// Returns a signed transaction ready to be relayed
-CosmosDelegateTool.prototype.txSign = async function (tx) {
-// TODO: Sign any transaction in a ledger device
-    return 'NA';
+CosmosDelegateTool.prototype.txCreateUndelegate = (txData) => {
+    throw new Error('Not implemented');
+};
+
+// Creates a new staking tx based on the input parameters
+// this function expect that retrieve balances has been called before
+CosmosDelegateTool.prototype.txCreateRedelegate = (txData) => {
+    throw new Error('Not implemented');
 };
 
 // Relays a signed transaction and returns a transaction hash
-CosmosDelegateTool.prototype.txSubmit = async function (tx) {
+CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
 // TODO: Submit/relay the transaction to a network node
     return 'NA';
 };

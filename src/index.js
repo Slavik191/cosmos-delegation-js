@@ -1,18 +1,18 @@
 /** ******************************************************************************
-*  (c) 2019 ZondaX GmbH
-*
-*  Licensed under the Apache License, Version 2.0 (the "License");
-*  you may not use this file except in compliance with the License.
-*  You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-*  Unless required by applicable law or agreed to in writing, software
-*  distributed under the License is distributed on an "AS IS" BASIS,
-*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*  See the License for the specific language governing permissions and
-*  limitations under the License.
-******************************************************************************* */
+ *  (c) 2019 ZondaX GmbH
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ ******************************************************************************* */
 import axios from 'axios';
 import Big from 'big.js';
 import {
@@ -32,11 +32,13 @@ const CosmosDelegateTool = function () {
     this.resturl = 'https://stargate.cosmos.network';
 };
 
+// Switch transport to HID (useful for local testing)
 CosmosDelegateTool.prototype.switchTransportToHID = function () {
     // eslint-disable-next-line camelcase
     this.comm = comm_node;
 };
 
+// Switch transport to U2F (can run in browser/client side but requires HTTPS)
 CosmosDelegateTool.prototype.switchTransportToU2F = function () {
     // eslint-disable-next-line camelcase
     this.comm = comm_u2f;
@@ -55,8 +57,7 @@ CosmosDelegateTool.prototype.connect = async function () {
     // console.log(version);
 };
 
-// Retrieve public key
-// Retrieve cosmos bech32 address
+// Retrieve public key and bech32 address
 CosmosDelegateTool.prototype.retrieveAddress = async function (account, index) {
     // TODO: error if not connected
 
@@ -168,26 +169,44 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
     return answer;
 };
 
-// TODO: Create a delegate transaction
-// TODO: Create a re-delegate transaction
-// TODO: Create an undelegate transaction
+// Creates a new staking tx based on the input parameters
 CosmosDelegateTool.prototype.txCreate = async function () {
+    // TODO: Prepare tx template
+    //
+    // TODO: Create a delegate transaction
+    // gaiacli tx staking delegate cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 1000stake --generate-only
+    // https://github.com/luniehq/lunie/blob/8abb00ed42e35b8a9d1b2176ee67857bb4a02e37/test/unit/specs/store/json/txs.js#L225
+    // TODO: Create a re-delegate transaction
+    // TODO: Create an undelegate transaction
     return 'NA';
 };
 
-// TODO: Sign any transaction in a ledger device
+// Returns a signed transaction ready to be relayed
 CosmosDelegateTool.prototype.txSign = async function (tx) {
+// TODO: Sign any transaction in a ledger device
     return 'NA';
 };
 
-// TODO: Submit/relay the transaction to a network node
+// Relays a signed transaction and returns a transaction hash
 CosmosDelegateTool.prototype.txSubmit = async function (tx) {
+// TODO: Submit/relay the transaction to a network node
     return 'NA';
 };
 
-// TODO: Retrieve the state of a transaction hash
+// Retrieve the status of a transaction hash
 CosmosDelegateTool.prototype.txStatus = async function (txHash) {
-    return 'NA';
+    const url = `${this.resturl}/txs/${txHash}`;
+
+    let response = '';
+    const request = axios.get(url).then((r) => {
+        response = r.data;
+    }, (e) => {
+        // TODO: improve error handling
+        console.log('Error', addr, e);
+    });
+
+    await request;
+    return response;
 };
 
 module.exports = CosmosDelegateTool;

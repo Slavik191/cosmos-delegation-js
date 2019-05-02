@@ -14,13 +14,12 @@
  *  limitations under the License.
  ******************************************************************************* */
 import CosmosDelegateTool from 'index.js';
-import Big from 'big.js';
 
 test('connect', async () => {
     const cdt = new CosmosDelegateTool();
 
     cdt.switchTransportToHID();
-    const tmp = await cdt.connect();
+    await cdt.connect();
 
     expect(cdt.connected).toBe(true);
     expect(cdt.lastError).toBe('No error');
@@ -64,20 +63,3 @@ test('scan addresses', async () => {
 
     console.log(addrs);
 });
-
-test('get balance', async () => {
-    const cdt = new CosmosDelegateTool();
-
-    const addrs = [
-        { bech32: 'cosmos1000ya26q2cmh399q4c5aaacd9lmmdqp92z6l7q' },
-        { bech32: 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt' },
-    ];
-
-    await cdt.retrieveBalances(addrs);
-
-    // TODO: Improve this test by mocking node rest responses
-    expect(addrs[0].balanceuAtom.toString()).toEqual('68991123');
-    expect(addrs[1].balanceuAtom.toString()).toEqual('2176');
-});
-
-// TODO: complete unit tests

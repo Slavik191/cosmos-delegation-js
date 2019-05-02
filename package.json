@@ -2,7 +2,7 @@
   "name": "cosmos-delegation-js",
   "version": "1.0.0",
   "description": "Node API for Cosmos Delegation using Ledger Nano S/X",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zondax/cosmos-delegation-js.git"
@@ -42,10 +42,12 @@
   "scripts": {
     "build": "babel src --out-dir dist",
     "serve": "node dist/server.js",
-    "test": "jest"
+    "test": "jest",
+    "test:unit": "jest -c jest.config.unit.js",
+    "test:integration": "jest -c jest.config.integration.js"
   },
   "moduleDirectories": [
     "node_modules",
-    "src"
+    "dist"
   ]
 }

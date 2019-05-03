@@ -46,18 +46,25 @@ CosmosDelegateTool.prototype.switchTransportToU2F = function () {
 
 // Detect when a ledger device is connected and verify the cosmos app is running.
 CosmosDelegateTool.prototype.connect = async function () {
-    this.connected = true;
+    this.connected = false;
     this.app = await this.comm
         .create_async(this.comm_timeout, this.transport_debug)
         .then(comm => new App(comm));
 
-    const version = await this.app.get_version();
     const appInfo = await this.app.appInfo();
+    // TODO: Check error code
+    // TODO: Is the cosmos app loaded ? Otherwise, suggest opening the correct app
+
+    const version = await this.app.get_version();
+    // TODO: Check error code
+    // TODO: Check version number
+    // TODO: Is minimum version available?
+
     console.log(version);
     console.log(appInfo);
 
-    // TODO: Check error code
-    // TODO: Check version number
+    this.connected = true;
+    return true;
 };
 
 function connectedOrThrow(cdt) {

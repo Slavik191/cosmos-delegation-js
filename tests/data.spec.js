@@ -13,6 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  ******************************************************************************* */
+// eslint-disable-next-line import/extensions,import/no-unresolved
 import CosmosDelegateTool from 'index.js';
 
 // TODO: Improve these tests by mocking node rest responses
@@ -56,6 +57,7 @@ test('get multiple accounts 2', async () => {
 
     const reply = await cdt.retrieveBalances(addrs);
     console.log(reply);
+    expect(reply.length).toBe(6);
 });
 
 

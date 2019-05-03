@@ -16,7 +16,6 @@
 import axios from 'axios';
 import Big from 'big.js';
 import {
-    // eslint-disable-next-line camelcase
     App, comm_node, comm_u2f, Tools,
 } from 'ledger-cosmos-js';
 
@@ -27,9 +26,12 @@ const CosmosDelegateTool = function () {
     this.comm = comm_u2f;
     this.connected = false;
     this.lastError = 'No error';
-    this.comm_timeout = 45000;
+    this.timeoutMS = 45000;
     this.transport_debug = false;
     this.resturl = 'https://stargate.cosmos.network';
+
+    this.requiredVersionMajor = 1;
+    this.requiredVersionMinor = 1;
 };
 
 // Switch transport to HID (useful for local testing)
@@ -44,27 +46,52 @@ CosmosDelegateTool.prototype.switchTransportToU2F = function () {
     this.comm = comm_u2f;
 };
 
+// This function returns the timeout in the correct units
+// timeouts for node and U2F are expressed in different units
+function getTimeout(cdt) {
+    // eslint-disable-next-line camelcase
+    if (cdt.comm === comm_u2f) {
+        return cdt.timeoutMS / 1000;
+    }
+    return cdt.timeoutMS;
+}
+
 // Detect when a ledger device is connected and verify the cosmos app is running.
 CosmosDelegateTool.prototype.connect = async function () {
     this.connected = false;
+
     this.app = await this.comm
-        .create_async(this.comm_timeout, this.transport_debug)
+        .create_async(getTimeout(this), this.transport_debug)
         .then(comm => new App(comm));
 
     const appInfo = await this.app.appInfo();
-    // TODO: Check error code
-    // TODO: Is the cosmos app loaded ? Otherwise, suggest opening the correct app
+    if (appInfo.return_code !== 0x9000) {
+        throw new Error(appInfo.error_message);
+    }
+
+    appInfo.appName = appInfo.appName || '?';
+    console.log(`Detected app ${appInfo.appName} ${appInfo.appVersion}`);
+
+    if (appInfo.appName.toLowerCase() !== 'cosmos') {
+        return false;
+    }
 
     const version = await this.app.get_version();
-    // TODO: Check error code
-    // TODO: Check version number
-    // TODO: Is minimum version available?
+    if (appInfo.return_code !== 0x9000) {
+        throw new Error(appInfo.error_message);
+    }
 
-    console.log(version);
-    console.log(appInfo);
+    const major = version.major || 0;
+    const minor = version.minor || 0;
 
+    if (major < this.requiredVersionMajor || minor < this.requiredVersionMinor) {
+        return false;
+    }
+
+    // Mark as connected
     this.connected = true;
-    return true;
+
+    return this.connected;
 };
 
 function connectedOrThrow(cdt) {
@@ -84,16 +111,18 @@ CosmosDelegateTool.prototype.txSign = async function (account, index, tx) {
 CosmosDelegateTool.prototype.retrieveAddress = async function (account, index) {
     connectedOrThrow(this);
 
-    const answer = {};
     const path = [44, 118, account, 0, index];
     const pk = await this.app.publicKey(path);
 
-    // TODO: Add error handling
-    answer.pk = pk.compressed_pk.toString('hex');
-    answer.path = path;
-    answer.bech32 = Tools.getBech32FromPK(defaultHrp, pk.compressed_pk);
+    if (pk.return_code !== 0x9000) {
+        throw new Error(pk.error_message);
+    }
 
-    return answer;
+    return {
+        pk: pk.compressed_pk.toString('hex'),
+        path,
+        bech32: Tools.getBech32FromPK(defaultHrp, pk.compressed_pk),
+    };
 };
 
 // Scan multiple address in a derivation path range (44’/118’/X/0/Y)
@@ -201,8 +230,8 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
                             const valTokens = valData.tokens;
                             const valTotalShares = valData.totalShares;
                             const tokens = shares.times(valTokens).div(valTotalShares);
-                            delegationsuAtoms[valAddr] = tokens.toString();
 
+                            delegationsuAtoms[valAddr] = tokens.toString();
                             totalDelegation = totalDelegation.add(tokens);
                         }
                     }

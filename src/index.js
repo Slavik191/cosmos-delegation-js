@@ -28,7 +28,10 @@ const CosmosDelegateTool = function () {
     this.lastError = 'No error';
     this.timeoutMS = 45000;
     this.transport_debug = false;
+
     this.resturl = 'https://stargate.cosmos.network';
+    //this.resturl = 'https://lcd.nylira.net';
+
 
     this.requiredVersionMajor = 1;
     this.requiredVersionMinor = 1;
@@ -265,11 +268,11 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
 // Creates a new staking tx based on the input parameters
 // this function expect that retrieve balances has been called before
 CosmosDelegateTool.prototype.txCreateDelegate = txData => `{"account_number":"${txData.accountNumber}",`
-        + `{"chain_id":"${txData.chainId}",`
-        + `"fee":{"amount":[],"gas":"${txData.gas}"},`
-        + `"memo":"${txData.memo}",`
-        + `"msgs":[{"delegator_addr":"${txData.delegatorAddr}","validator_addr":"${txData.validatorAddr}","value":{"amount":"${txData.amount}","denom":"uatom"}}],`
-        + `"sequence":"${txData.sequence}"}`;
+    + `{"chain_id":"${txData.chainId}",`
+    + `"fee":{"amount":[],"gas":"${txData.gas}"},`
+    + `"memo":"${txData.memo}",`
+    + `"msgs":[{"delegator_addr":"${txData.delegatorAddr}","validator_addr":"${txData.validatorAddr}","value":{"amount":"${txData.amount}","denom":"uatom"}}],`
+    + `"sequence":"${txData.sequence}"}`;
 
 CosmosDelegateTool.prototype.txCreateUndelegate = (txData) => {
     throw new Error('Not implemented');
@@ -282,9 +285,41 @@ CosmosDelegateTool.prototype.txCreateRedelegate = (txData) => {
 };
 
 // Relays a signed transaction and returns a transaction hash
-CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
-// TODO: Submit/relay the transaction to a network node
-    return 'NA';
+CosmosDelegateTool.prototype.txEstimateGas = async function (tx) {
+    const url = `${this.resturl}/staking/delegators/${tx.delegator_address}/delegations`;
+    const txstr = JSON.stringify(tx);
+    const request = axios.post(url, txstr).then((r) => {
+        console.log('Error', r);
+    }, (e) => {
+        // TODO: improve error handling
+        try {
+
+            return { error: e.response.data.error};
+        } catch {
+            return { error: e.message };
+        }
+    });
+
+    return await request;
+};
+
+// Relays a signed transaction and returns a transaction hash
+CosmosDelegateTool.prototype.txSubmitDelegation = async function (tx) {
+    const url = `${this.resturl}/staking/delegators/${tx.delegator_address}/delegations`;
+    const txstr = JSON.stringify(tx);
+    const request = axios.post(url, txstr).then((r) => {
+        console.log('Error', r);
+    }, (e) => {
+        // TODO: improve error handling
+        try {
+
+            return { error: e.response.data.error};
+        } catch {
+            return { error: e.message };
+        }
+    });
+
+    return await request;
 };
 
 // Retrieve the status of a transaction hash

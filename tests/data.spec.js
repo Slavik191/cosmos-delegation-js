@@ -24,8 +24,8 @@ test('get account info', async () => {
     const addr = { bech32: 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt' };
     const answer = await cdt.getAccountInfo(addr);
 
-    expect(answer.sequence).toEqual('60');
-    expect(answer.balanceuAtom.toString()).toEqual('891');
+    expect(answer.sequence).toEqual('62');
+    expect(answer.balanceuAtom.toString()).toEqual('1700');
 });
 
 test('get multiple accounts', async () => {
@@ -41,7 +41,7 @@ test('get multiple accounts', async () => {
     console.log(reply);
 
     expect(reply[0].balanceuAtom).toEqual('68991123');
-    expect(reply[1].balanceuAtom).toEqual('891');
+    expect(reply[1].balanceuAtom).toEqual('1700');
 });
 
 test('get multiple accounts 2', async () => {
@@ -78,6 +78,63 @@ test('create delegate tx', async () => {
     const unsignedTx = cdt.txCreateDelegate(txData);
     console.log(unsignedTx);
     expect(unsignedTx.length).toEqual(305);
+});
+
+test('estimate gas', async () => {
+    const cdt = new CosmosDelegateTool();
+
+    const txData = {
+        base_req: {
+            from: 'cosmos1g9ahr6xhht5rmqven628nklxluzyv8z9jqjcmc',
+            memo: 'Sent via Cosmos Voyager 🚀',
+            chain_id: 'Cosmos-Hub',
+            account_number: '0',
+            sequence: '1',
+            gas: '200000',
+            gas_adjustment: '1.2',
+            fees: [{ denom: 'stake', amount: '50' }],
+            simulate: true,
+        },
+        delegator_address: 'cosmos1depk54cuajgkzea6zpgkq36tnjwdzv4afc3d27',
+        validator_address: 'cosmosvaloper1depk54cuajgkzea6zpgkq36tnjwdzv4avv9cxd',
+        delegation: {
+            denom: 'stake',
+            amount: '50',
+        },
+    };
+
+    const unsignedTx = await cdt.txEstimateGas(txData);
+    console.log(unsignedTx);
+    expect('error' in unsignedTx).toEqual(false);
+});
+
+
+test('relay delegation tx', async () => {
+    const cdt = new CosmosDelegateTool();
+
+    const txData = {
+        base_req: {
+            from: 'cosmos1g9ahr6xhht5rmqven628nklxluzyv8z9jqjcmc',
+            memo: 'Sent via Cosmos Voyager 🚀',
+            chain_id: 'Cosmos-Hub',
+            account_number: '0',
+            sequence: '1',
+            gas: '200000',
+            gas_adjustment: '1.2',
+            fees: [{ denom: 'stake', amount: '50' }],
+            simulate: true,
+        },
+        delegator_address: 'cosmos1depk54cuajgkzea6zpgkq36tnjwdzv4afc3d27',
+        validator_address: 'cosmosvaloper1depk54cuajgkzea6zpgkq36tnjwdzv4avv9cxd',
+        delegation: {
+            denom: 'stake',
+            amount: '50',
+        },
+    };
+
+    const unsignedTx = await cdt.txSubmitDelegation(txData);
+    console.log(unsignedTx);
+    expect('error' in unsignedTx).toEqual(false);
 });
 
 test('get tx status', async () => {

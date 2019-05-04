@@ -10,22 +10,22 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: npm install
-      - run: npm run build
+      - run: yarn install
+      - run: yarn build
 
   test:
     <<: *defaults
     steps:
       - checkout
-      - run: npm install
-      - run: npm run test:unit
+      - run: yarn install
+      - run: yarn test:unit
 
   publish:
     <<: *defaults
     steps:
       - checkout
-      - run: npm install
-      - run: npm run build
+      - run: yarn install
+      - run: yarn build
       - run:
           name: prepare authentication config
           command: echo "//registry.npmjs.org/:_authToken=$npm_TOKEN" > ~/repo/.npmrc

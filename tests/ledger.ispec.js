@@ -133,7 +133,7 @@ test('sign tx', async () => {
     const account = 0;
     const index = 0;
     const dummyTx = '{"account_number":1,"chain_id":"some_chain","fee":{"amount":[{"amount":10,"denom":"DEN"}],"gas":5},"memo":"MEMO","msgs":["SOMETHING"],"sequence":3}';
-    const signedTx = await cdt.txSign(account, index, dummyTx);
+    const signedTx = await cdt.sign(account, index, dummyTx);
 
     expect(signedTx.error_message).toBe('No errors');
     expect(signedTx.return_code).toBe(0x9000);

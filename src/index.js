@@ -13,11 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  ******************************************************************************* */
-import axios from 'axios';
-import Big from 'big.js';
 import {
+    // eslint-disable-next-line camelcase
     App, comm_node, comm_u2f, Tools,
 } from 'ledger-cosmos-js';
+import axios from 'axios';
+import Big from 'big.js';
+// eslint-disable-next-line import/no-unresolved
+import txs from 'txs';
 
 const defaultHrp = 'cosmos';
 
@@ -27,11 +30,10 @@ const CosmosDelegateTool = function () {
     this.connected = false;
     this.lastError = 'No error';
     this.timeoutMS = 45000;
-    this.transport_debug = false;
+    this.transportDebug = false;
 
-    this.resturl = 'https://stargate.cosmos.network';
-    //this.resturl = 'https://lcd.nylira.net';
-
+    //this.resturl = 'https://stargate.cosmos.network';
+    this.resturl = 'https://lcd.nylira.net';
 
     this.requiredVersionMajor = 1;
     this.requiredVersionMinor = 1;
@@ -63,8 +65,10 @@ function getTimeout(cdt) {
 CosmosDelegateTool.prototype.connect = async function () {
     this.connected = false;
 
+    // TODO: expose recognition progress
+
     this.app = await this.comm
-        .create_async(getTimeout(this), this.transport_debug)
+        .create_async(getTimeout(this), this.transportDebug)
         .then(comm => new App(comm));
 
     const appInfo = await this.app.appInfo();
@@ -104,10 +108,19 @@ function connectedOrThrow(cdt) {
 }
 
 // Returns a signed transaction ready to be relayed
-CosmosDelegateTool.prototype.txSign = async function (account, index, tx) {
+CosmosDelegateTool.prototype.sign = async function (unsignedTx, txContext) {
     connectedOrThrow(this);
-    const path = [44, 118, account, 0, index];
-    return this.app.sign(path, tx);
+    if (typeof txContext.path === 'undefined') {
+        throw new Error('context should include the account path')
+    }
+
+    const bytesToSign = txs.getBytesToSign(unsignedTx, txContext);
+
+    // TODO: improve error handling
+    const signature = this.app.sign(txContext.path, bytesToSign);
+    const signedTx = txs.applySignature(unsignedTx, txContext, signature);
+
+    return signedTx;
 };
 
 // Retrieve public key and bech32 address
@@ -168,7 +181,7 @@ CosmosDelegateTool.prototype.retrieveValidators = async function () {
 CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
     const url = `${this.resturl}/auth/accounts/${addr.bech32}`;
 
-    const answer = {
+    const txContext = {
         sequence: '0',
         accountNumber: '0',
         balanceuAtom: '0',
@@ -177,22 +190,22 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
     return axios.get(url).then((r) => {
         try {
             if (typeof r.data !== 'undefined' && typeof r.data.value !== 'undefined') {
-                answer.sequence = r.data.value.sequence;
-                answer.accountNumber = r.data.value.account_number;
+                txContext.sequence = Number(r.data.value.sequence).toString();
+                txContext.accountNumber = Number(r.data.value.account_number).toString();
                 const tmp = r.data.value.coins.filter(x => x.denom === 'uatom');
                 if (tmp.length > 0) {
-                    answer.balanceuAtom = Big(tmp[0].amount).toString();
+                    txContext.balanceuAtom = Big(tmp[0].amount).toString();
                 }
             }
         } catch (e) {
             // TODO: improve error handling
             console.log('Error ', e, ' returning defaults');
         }
-        return answer;
+        return txContext;
     }, (e) => {
         // TODO: improve error handling
         console.log('Error ', e, ' returning defaults');
-        return answer;
+        return txContext;
     });
 };
 
@@ -201,8 +214,8 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
 CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
     // Get all balances
     const requestsBalance = addressList.map(async (addr, index) => {
-        const answer = await this.getAccountInfo(addr);
-        return Object.assign({}, addressList[index], answer);
+        const txContext = await this.getAccountInfo(addr);
+        return Object.assign({}, addressList[index], txContext);
     });
 
     const validators = await this.retrieveValidators();
@@ -213,7 +226,7 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
         // TODO: move to its own method
         const url = `${this.resturl}/staking/delegators/${addr.bech32}/delegations`;
         return axios.get(url).then((r) => {
-            const answer = {
+            const txContext = {
                 delegationsuAtoms: {},
                 delegationsTotaluAtoms: {},
             };
@@ -244,10 +257,10 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
                 console.log('Error', e);
             }
 
-            answer.delegationsuAtoms = delegationsuAtoms;
-            answer.delegationsTotaluAtoms = totalDelegation.toString();
+            txContext.delegationsuAtoms = delegationsuAtoms;
+            txContext.delegationsTotaluAtoms = totalDelegation.toString();
 
-            return answer;
+            return txContext;
         }, (e) => {
             // TODO: improve error handling
             console.log('Error', addr, e);
@@ -267,12 +280,14 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
 
 // Creates a new staking tx based on the input parameters
 // this function expect that retrieve balances has been called before
-CosmosDelegateTool.prototype.txCreateDelegate = txData => `{"account_number":"${txData.accountNumber}",`
-    + `{"chain_id":"${txData.chainId}",`
-    + `"fee":{"amount":[],"gas":"${txData.gas}"},`
-    + `"memo":"${txData.memo}",`
-    + `"msgs":[{"delegator_addr":"${txData.delegatorAddr}","validator_addr":"${txData.validatorAddr}","value":{"amount":"${txData.amount}","denom":"uatom"}}],`
-    + `"sequence":"${txData.sequence}"}`;
+CosmosDelegateTool.prototype.txCreateDelegate = (
+    txContext,
+    validatorBech32,
+    uatomAmount,
+    memo,
+) => {
+    return txs.createDelegate(txContext, validatorBech32, uatomAmount, memo);
+};
 
 CosmosDelegateTool.prototype.txCreateUndelegate = (txData) => {
     throw new Error('Not implemented');
@@ -286,36 +301,31 @@ CosmosDelegateTool.prototype.txCreateRedelegate = (txData) => {
 
 // Relays a signed transaction and returns a transaction hash
 CosmosDelegateTool.prototype.txEstimateGas = async function (tx) {
-    const url = `${this.resturl}/staking/delegators/${tx.delegator_address}/delegations`;
-    const txstr = JSON.stringify(tx);
-    const request = axios.post(url, txstr).then((r) => {
-        console.log('Error', r);
-    }, (e) => {
-        // TODO: improve error handling
-        try {
-
-            return { error: e.response.data.error};
-        } catch {
-            return { error: e.message };
-        }
-    });
-
-    return await request;
+    throw new Error('Not implemented');
 };
 
 // Relays a signed transaction and returns a transaction hash
-CosmosDelegateTool.prototype.txSubmitDelegation = async function (tx) {
-    const url = `${this.resturl}/staking/delegators/${tx.delegator_address}/delegations`;
-    const txstr = JSON.stringify(tx);
-    const request = axios.post(url, txstr).then((r) => {
+CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
+    const txBody = {
+        tx: signedTx.value,
+        mode: 'block',
+    };
+
+    console.log(JSON.stringify(txBody, null, 4));
+
+    const url = `${this.resturl}/txs`;
+    const request = axios.post(url, JSON.stringify(txBody)).then((r) => {
         console.log('Error', r);
     }, (e) => {
         // TODO: improve error handling
         try {
-
-            return { error: e.response.data.error};
-        } catch {
-            return { error: e.message };
+            return {
+                error: e.response.data.error,
+            };
+        } catch (e2) {
+            return {
+                error: e2.message,
+            };
         }
     });
 

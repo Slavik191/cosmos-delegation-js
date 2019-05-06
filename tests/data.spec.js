@@ -39,7 +39,7 @@ test('get multiple accounts', async () => {
 
     const reply = await cdt.retrieveBalances(addrs);
 
-    console.log(reply);
+    console.log(JSON.stringify(reply, null, 4));
 
     expect(reply[0].balanceuAtom).toEqual('68991123');
     expect(reply[1].balanceuAtom).toEqual('1700');

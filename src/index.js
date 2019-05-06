@@ -227,11 +227,11 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
         const url = `${this.resturl}/staking/delegators/${addr.bech32}/delegations`;
         return axios.get(url).then((r) => {
             const txContext = {
-                delegationsuAtoms: {},
-                delegationsTotaluAtoms: {},
+                delegations: {},
+                delegationsTotaluAtoms: '0',
             };
 
-            const delegationsuAtoms = {};
+            const delegations = {};
             let totalDelegation = Big(0);
 
             try {
@@ -247,7 +247,10 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
                             const valTotalShares = valData.totalShares;
                             const tokens = shares.times(valTokens).div(valTotalShares);
 
-                            delegationsuAtoms[valAddr] = tokens.toString();
+                            delegations[valAddr] = {
+                                uatoms: tokens.toString(),
+                                shares: shares.toString(),
+                            }
                             totalDelegation = totalDelegation.add(tokens);
                         }
                     }
@@ -257,7 +260,7 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
                 console.log('Error', e);
             }
 
-            txContext.delegationsuAtoms = delegationsuAtoms;
+            txContext.delegations = delegations;
             txContext.delegationsTotaluAtoms = totalDelegation.toString();
 
             return txContext;
@@ -278,31 +281,53 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
     return reply;
 };
 
-// Creates a new staking tx based on the input parameters
+// Creates a new delegation tx based on the input parameters
 // this function expect that retrieve balances has been called before
 CosmosDelegateTool.prototype.txCreateDelegate = (
     txContext,
     validatorBech32,
     uatomAmount,
     memo,
-) => {
-    return txs.createDelegate(txContext, validatorBech32, uatomAmount, memo);
-};
+) => txs.createDelegate(
+    txContext,
+    validatorBech32,
+    uatomAmount,
+    memo,
+);
 
-CosmosDelegateTool.prototype.txCreateUndelegate = (txData) => {
-    throw new Error('Not implemented');
-};
+// Creates a new undelegation tx based on the input parameters
+// this function expect that retrieve balances has been called before
+CosmosDelegateTool.prototype.txCreateUndelegate = (
+    txContext,
+    validatorBech32,
+    sharesAmount,
+    memo,
+) => txs.createUndelegate(
+    txContext,
+    validatorBech32,
+    sharesAmount,
+    memo,
+);
 
 // Creates a new staking tx based on the input parameters
 // this function expect that retrieve balances has been called before
-CosmosDelegateTool.prototype.txCreateRedelegate = (txData) => {
-    throw new Error('Not implemented');
-};
+CosmosDelegateTool.prototype.txCreateRedelegate = (
+    txContext,
+    validatorSourceBech32,
+    validatorDestBech32,
+    sharesAmount,
+    memo,
+) => txs.createRedelegate(txContext,
+    validatorSourceBech32,
+    validatorDestBech32,
+    sharesAmount,
+    memo,
+);
 
-// Relays a signed transaction and returns a transaction hash
-CosmosDelegateTool.prototype.txEstimateGas = async function (tx) {
-    throw new Error('Not implemented');
-};
+// // Relays a signed transaction and returns a transaction hash
+// CosmosDelegateTool.prototype.txEstimateGas = async function (tx) {
+//     throw new Error('Not implemented');
+// };
 
 // Relays a signed transaction and returns a transaction hash
 CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
@@ -311,11 +336,9 @@ CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
         mode: 'block',
     };
 
-    console.log(JSON.stringify(txBody, null, 4));
-
     const url = `${this.resturl}/txs`;
     const request = axios.post(url, JSON.stringify(txBody)).then((r) => {
-        console.log('Error', r);
+        return r;
     }, (e) => {
         // TODO: improve error handling
         try {

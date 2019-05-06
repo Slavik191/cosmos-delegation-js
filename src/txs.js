@@ -140,14 +140,42 @@ function createDelegate(txContext, validatorBech32, uatomAmount, memo) {
 
 // Creates a new undelegation tx based on the input parameters
 // the function expects a complete txContext
-function createUndelegate(txContext) {
-    throw new Error('Not implemented');
+function createUndelegate(txContext, validatorBech32, sharesAmount, memo) {
+    const txSkeleton = createSkeleton();
+
+    const txMsg = {
+        type: 'cosmos-sdk/MsgUndelegate',
+        value: {
+            delegator_address: txContext.bech32,
+            validator_address: validatorBech32,
+            shares: sharesAmount.toString(),
+        },
+    };
+
+    txSkeleton.value.msg = [txMsg];
+    txSkeleton.value.memo = memo || '';
+
+    return txSkeleton;
 }
 
 // Creates a new redelegation tx based on the input parameters
 // the function expects a complete txContext
-function createRedelegate(txContext) {
-    throw new Error('Not implemented');
+function createRedelegate(txContext, validatorSourceBech32, validatorDestBech32, sharesAmount, memo) {
+    const txSkeleton = createSkeleton();
+
+    const txMsg = {
+        type: 'cosmos-sdk/MsgUndelegate',
+        value: {
+            validator_src_address: validatorSourceBech32,
+            validator_dst_address: validatorDestBech32,
+            shares_amount: sharesAmount.toString(),
+        },
+    };
+
+    txSkeleton.value.msg = [txMsg];
+    txSkeleton.value.memo = memo || '';
+
+    return txSkeleton;
 }
 
 export default {

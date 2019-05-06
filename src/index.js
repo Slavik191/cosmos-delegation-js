@@ -19,8 +19,7 @@ import {
 } from 'ledger-cosmos-js';
 import axios from 'axios';
 import Big from 'big.js';
-// eslint-disable-next-line import/no-unresolved
-import txs from 'txs';
+import txs from './txs';
 
 const defaultHrp = 'cosmos';
 
@@ -250,7 +249,7 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
                             delegations[valAddr] = {
                                 uatoms: tokens.toString(),
                                 shares: shares.toString(),
-                            }
+                            };
                             totalDelegation = totalDelegation.add(tokens);
                         }
                     }
@@ -321,8 +320,7 @@ CosmosDelegateTool.prototype.txCreateRedelegate = (
     validatorSourceBech32,
     validatorDestBech32,
     sharesAmount,
-    memo,
-);
+    memo);
 
 // // Relays a signed transaction and returns a transaction hash
 // CosmosDelegateTool.prototype.txEstimateGas = async function (tx) {
@@ -337,9 +335,7 @@ CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
     };
 
     const url = `${this.resturl}/txs`;
-    const request = axios.post(url, JSON.stringify(txBody)).then((r) => {
-        return r;
-    }, (e) => {
+    const request = axios.post(url, JSON.stringify(txBody)).then(r => r, (e) => {
         // TODO: improve error handling
         try {
             return {

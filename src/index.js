@@ -27,15 +27,23 @@ const CosmosDelegateTool = function () {
     // eslint-disable-next-line camelcase
     this.comm = comm_u2f;
     this.connected = false;
+
     this.lastError = 'No error';
+    this.checkAppInfo = false;
+
     this.timeoutMS = 45000;
     this.transportDebug = false;
 
-    //this.resturl = 'https://stargate.cosmos.network';
-    this.resturl = 'https://lcd.nylira.net';
+    this.resturl = 'https://stargate.cosmos.network';
+    //    this.resturl = 'https://lcd.nylira.net';
 
     this.requiredVersionMajor = 1;
     this.requiredVersionMinor = 1;
+};
+
+// eslint-disable-next-line no-unused-vars
+CosmosDelegateTool.prototype.setNodeURL = function (resturl) {
+    this.resturl = resturl;
 };
 
 // Switch transport to HID (useful for local testing)
@@ -60,48 +68,68 @@ function getTimeout(cdt) {
     return cdt.timeoutMS;
 }
 
+function wrapError(cdt, e) {
+    try {
+        // eslint-disable-next-line no-param-reassign
+        cdt.lastError = e.response.data.error;
+        return {
+            error: e.response.data.error,
+        };
+    } catch (e2) {
+        this.lastError = e2.message;
+        return {
+            error: e2.message,
+        };
+    }
+}
+
 // Detect when a ledger device is connected and verify the cosmos app is running.
 CosmosDelegateTool.prototype.connect = async function () {
     this.connected = false;
-
-    // TODO: expose recognition progress
+    this.lastError = null;
 
     this.app = await this.comm
         .create_async(getTimeout(this), this.transportDebug)
         .then(comm => new App(comm));
 
-    const appInfo = await this.app.appInfo();
-    if (appInfo.return_code !== 0x9000) {
-        throw new Error(appInfo.error_message);
-    }
+    if (this.checkAppInfo) {
+        const appInfo = await this.app.appInfo();
+        if (appInfo.return_code !== 0x9000) {
+            this.lastError = appInfo.error_message;
+            throw new Error(appInfo.error_message);
+        }
 
-    appInfo.appName = appInfo.appName || '?';
-    console.log(`Detected app ${appInfo.appName} ${appInfo.appVersion}`);
+        appInfo.appName = appInfo.appName || '?';
+        console.log(`Detected app ${appInfo.appName} ${appInfo.appVersion}`);
 
-    if (appInfo.appName.toLowerCase() !== 'cosmos') {
-        return false;
+        if (appInfo.appName.toLowerCase() !== 'cosmos') {
+            this.lastError = `Incorrect app detected ${appInfo.appName.toString()}`;
+            return false;
+        }
     }
 
     const version = await this.app.get_version();
-    if (appInfo.return_code !== 0x9000) {
-        throw new Error(appInfo.error_message);
+    if (version.return_code !== 0x9000) {
+        this.lastError = version.error_message;
+        throw new Error(version.error_message);
     }
 
     const major = version.major || 0;
     const minor = version.minor || 0;
 
     if (major < this.requiredVersionMajor || minor < this.requiredVersionMinor) {
+        this.lastError = 'Version not supported';
         return false;
     }
 
     // Mark as connected
     this.connected = true;
-
     return this.connected;
 };
 
 function connectedOrThrow(cdt) {
     if (!cdt.connected) {
+        this.lastError = 'Device is not connected';
         throw new Error('Device is not connected');
     }
 }
@@ -110,6 +138,7 @@ function connectedOrThrow(cdt) {
 CosmosDelegateTool.prototype.sign = async function (unsignedTx, txContext) {
     connectedOrThrow(this);
     if (typeof txContext.path === 'undefined') {
+        this.lastError = 'context should include the account path';
         throw new Error('context should include the account path');
     }
 
@@ -119,6 +148,7 @@ CosmosDelegateTool.prototype.sign = async function (unsignedTx, txContext) {
     const response = await this.app.sign(txContext.path, bytesToSign);
 
     if (response.return_code !== 0x9000) {
+        this.lastError = response.error_message;
         throw new Error(response.error_message);
     }
 
@@ -133,6 +163,7 @@ CosmosDelegateTool.prototype.retrieveAddress = async function (account, index) {
     const pk = await this.app.publicKey(path);
 
     if (pk.return_code !== 0x9000) {
+        this.lastError = pk.error_message;
         throw new Error(pk.error_message);
     }
 
@@ -171,10 +202,7 @@ CosmosDelegateTool.prototype.retrieveValidators = async function () {
             validatorData.totalShares = Big(t.delegator_shares);
             validators[t.operator_address] = validatorData;
         }
-    }, (e) => {
-        // TODO: improve error handling
-        console.log('Error', e);
-    });
+    }, e => wrapError(this, e));
 
     await requestValidators;
     return validators;
@@ -200,15 +228,10 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
                 }
             }
         } catch (e) {
-            // TODO: improve error handling
             console.log('Error ', e, ' returning defaults');
         }
         return txContext;
-    }, (e) => {
-        // TODO: improve error handling
-        console.log('Error ', e, ' returning defaults');
-        return txContext;
-    });
+    }, e => wrapError(this, e));
 };
 
 // Retrieve atom balances from the network for a list of account
@@ -258,18 +281,14 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
                     }
                 }
             } catch (e) {
-                // TODO: improve error handling
-                console.log('Error', e);
+                console.log('Error ', e, ' returning defaults');
             }
 
             txContext.delegations = delegations;
             txContext.delegationsTotaluAtoms = totalDelegation.toString();
 
             return txContext;
-        }, (e) => {
-            // TODO: improve error handling
-            console.log('Error', addr, e);
-        });
+        }, e => wrapError(this, e));
     });
 
     const balances = await Promise.all(requestsBalance);
@@ -325,11 +344,6 @@ CosmosDelegateTool.prototype.txCreateRedelegate = (
     sharesAmount,
     memo);
 
-// // Relays a signed transaction and returns a transaction hash
-// CosmosDelegateTool.prototype.txEstimateGas = async function (tx) {
-//     throw new Error('Not implemented');
-// };
-
 // Relays a signed transaction and returns a transaction hash
 CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
     const txBody = {
@@ -338,36 +352,13 @@ CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
     };
 
     const url = `${this.resturl}/txs`;
-    const request = axios.post(url, JSON.stringify(txBody)).then(r => r, (e) => {
-        // TODO: improve error handling
-        try {
-            return {
-                error: e.response.data.error,
-            };
-        } catch (e2) {
-            return {
-                error: e2.message,
-            };
-        }
-    });
-
-    return await request;
+    return await axios.post(url, JSON.stringify(txBody)).then(r => r, e => wrapError(this, e));
 };
 
 // Retrieve the status of a transaction hash
 CosmosDelegateTool.prototype.txStatus = async function (txHash) {
     const url = `${this.resturl}/txs/${txHash}`;
-
-    let response = '';
-    const request = axios.get(url).then((r) => {
-        response = r.data;
-    }, (e) => {
-        // TODO: improve error handling
-        console.log('Error', e);
-    });
-
-    await request;
-    return response;
+    return await axios.get(url).then(r => r.data, e => wrapError(this, e));
 };
 
 module.exports = CosmosDelegateTool;

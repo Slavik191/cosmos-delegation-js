@@ -131,7 +131,7 @@ test('sign tx', async () => {
 
     await cdt.connect();
     expect(cdt.connected).toBe(true);
-    expect(cdt.lastError).toBe('No error');
+    expect(cdt.lastError).toBeNull();
 
     const txContext = {
         accountNumber: 0,

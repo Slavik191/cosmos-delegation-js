@@ -161,7 +161,11 @@ function createUndelegate(txContext, validatorBech32, sharesAmount, memo) {
 
 // Creates a new redelegation tx based on the input parameters
 // the function expects a complete txContext
-function createRedelegate(txContext, validatorSourceBech32, validatorDestBech32, sharesAmount, memo) {
+function createRedelegate(txContext,
+    validatorSourceBech32,
+    validatorDestBech32,
+    sharesAmount,
+    memo) {
     const txSkeleton = createSkeleton();
 
     const txMsg = {
@@ -184,8 +188,6 @@ export default {
     createDelegate,
     createRedelegate,
     createUndelegate,
-
     getBytesToSign,
-    applyGas,
     applySignature,
 };

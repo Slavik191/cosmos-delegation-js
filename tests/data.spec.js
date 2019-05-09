@@ -25,8 +25,8 @@ test('get account info', async () => {
     const addr = {bech32: 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt'};
     const answer = await cdt.getAccountInfo(addr);
 
-    expect(answer.sequence).toEqual('62');
-    expect(answer.balanceuAtom.toString()).toEqual('1700');
+    expect(answer.sequence).toEqual('66');
+    expect(answer.balanceuAtom.toString()).toEqual('1148');
 });
 
 test('get multiple accounts', async () => {
@@ -42,7 +42,7 @@ test('get multiple accounts', async () => {
     console.log(JSON.stringify(reply, null, 4));
 
     expect(reply[0].balanceuAtom).toEqual('68991123');
-    expect(reply[1].balanceuAtom).toEqual('1700');
+    expect(reply[1].balanceuAtom).toEqual('1148');
 });
 
 test('get multiple accounts 2', async () => {
@@ -52,32 +52,32 @@ test('get multiple accounts 2', async () => {
         {
             pk: '02117e3f0b7528e2b06670d5adcdae089a27d3e5d2f61bb53652397f31b97e59e3',
             path: [44, 118, 0, 0, 0],
-            bech32: 'cosmos1vu7su5av76usjegnpdeqyxpnpknmtrlz9nzsnh'
+            bech32: 'cosmos1vu7su5av76usjegnpdeqyxpnpknmtrlz9nzsnh',
         },
         {
             pk: '021fde41bbaf3ca7567d8b9f0b6423cb4405f9897d175a826192af551bf30764f8',
             path: [44, 118, 0, 0, 1],
-            bech32: 'cosmos1zt4tkl5y5mtq5u2wa4wm2z88dwu0pz258e6aqj'
+            bech32: 'cosmos1zt4tkl5y5mtq5u2wa4wm2z88dwu0pz258e6aqj',
         },
         {
             pk: '020ed96fd39753bdcc0aab176e654165c7c86b597738a30e8b82202e84eef8f093',
             path: [44, 118, 0, 0, 2],
-            bech32: 'cosmos1hkhu7msq5avuah83qdqrp9408hs8kk0slplvj9'
+            bech32: 'cosmos1hkhu7msq5avuah83qdqrp9408hs8kk0slplvj9',
         },
         {
             pk: '0398536942a89fe7a6f5dee1371ca309163952ec6c45f07d61c4a6c993db23373a',
             path: [44, 118, 0, 0, 3],
-            bech32: 'cosmos1plsr5lx33hrwczau8cppvae0nqy5cj3rhug52y'
+            bech32: 'cosmos1plsr5lx33hrwczau8cppvae0nqy5cj3rhug52y',
         },
         {
             pk: '03bd0b280921e24c911389cf624eda6da93bacddbad13d23e8381e1f4d9b4966df',
             path: [44, 118, 0, 0, 4],
-            bech32: 'cosmos1a69hjkgvm6raz0z7s6hpv4n7f3unhqt4h7rxm8'
+            bech32: 'cosmos1a69hjkgvm6raz0z7s6hpv4n7f3unhqt4h7rxm8',
         },
         {
             pk: '0236db5773fedd060b582f9b42d838166bc6d37eeb1d1921a958634df0deab6896',
             path: [44, 118, 0, 0, 5],
-            bech32: 'cosmos17xkagmer7mte7ycdqxda4a3xfun5pyjwvf5p69'
+            bech32: 'cosmos17xkagmer7mte7ycdqxda4a3xfun5pyjwvf5p69',
         }];
 
     const reply = await cdt.retrieveBalances(addrs);
@@ -124,7 +124,7 @@ test('relay delegation tx', async () => {
     const unsignedTx = cdt.txCreateDelegate(txContext, validatorAddrBech32, uAtomAmount, memo);
 
     // This is faking the signature, in practice this should be using a ledger via cdt.sign()
-    const fakeSignature = 'MEUCIQD02fsDPra8MtbRsyB1w7bqTM55Wu138zQbFcWx4+CFyAIge5WNPfKIuvzBZ69MyqHsqD8S1IwiEp+iUb6VSdtlpgY='
+    const fakeSignature = 'MEUCIQD02fsDPra8MtbRsyB1w7bqTM55Wu138zQbFcWx4+CFyAIge5WNPfKIuvzBZ69MyqHsqD8S1IwiEp+iUb6VSdtlpgY=';
     const signedTx = txs.applySignature(unsignedTx, txContext, fakeSignature);
 
     // Now submit the transaction
@@ -133,6 +133,29 @@ test('relay delegation tx', async () => {
     // Print response
     console.log(response);
     expect('error' in unsignedTx).toEqual(false);
+});
+
+test('get bytes to sign', async () => {
+    const cdt = new CosmosDelegateTool();
+
+    const txContext = {
+        accountNumber: 0,
+        chainId: 'some_chain',
+        path: [44, 118, 0, 0, 0],
+        sequence: 0,
+        pk: '034fef9cd7c4c63588d3b03feb5281b9d232cba34d6f3d71aee59211ffbfe1fe87',
+    };
+
+    const dummyTx = cdt.txCreateDelegate(
+        txContext,
+        'validatorAddress',
+        100,
+        'some_memo',
+    );
+
+    const bytesToSign = txs.getBytesToSign(dummyTx, txContext);
+
+    console.log(bytesToSign);
 });
 
 test('get tx status', async () => {

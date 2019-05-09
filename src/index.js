@@ -110,16 +110,19 @@ function connectedOrThrow(cdt) {
 CosmosDelegateTool.prototype.sign = async function (unsignedTx, txContext) {
     connectedOrThrow(this);
     if (typeof txContext.path === 'undefined') {
-        throw new Error('context should include the account path')
+        throw new Error('context should include the account path');
     }
 
     const bytesToSign = txs.getBytesToSign(unsignedTx, txContext);
+    console.log(bytesToSign);
 
-    // TODO: improve error handling
-    const signature = this.app.sign(txContext.path, bytesToSign);
-    const signedTx = txs.applySignature(unsignedTx, txContext, signature);
+    const response = await this.app.sign(txContext.path, bytesToSign);
 
-    return signedTx;
+    if (response.return_code !== 0x9000) {
+        throw new Error(response.error_message);
+    }
+
+    return txs.applySignature(unsignedTx, txContext, response.signature);
 };
 
 // Retrieve public key and bech32 address

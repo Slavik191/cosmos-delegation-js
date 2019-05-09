@@ -53,7 +53,7 @@ test('delegate', async () => {
     );
 
     const jsonStr = JSON.stringify(txDelegation);
-    const expectedJsonStr = '{"type":"auth/StdTx","value":{"msg":[{"type":"cosmos-sdk/MsgDelegate","value":{"delegator_address":"my_addr","validator_address":"val_addr","amount":{"amount":"100","denom":"uatom"}}}],"fee":{"gas":"150000","amount":[{"denom":"uatom","amount":"3750"}]},"memo":"some_memo","signatures":[{"signature":"N/A","account_number":"0","sequence":"0","pub_key":{"type":"tendermint/PubKeySecp256k1","value":"PK"}}]}}';
+    const expectedJsonStr = '{"type":"auth/StdTx","value":{"msg":[{"type":"cosmos-sdk/MsgDelegate","value":{"amount":{"amount":"100","denom":"uatom"},"delegator_address":"my_addr","validator_address":"val_addr"}}],"fee":{"amount":[{"amount":"3750","denom":"uatom"}],"gas":"150000"},"memo":"some_memo","signatures":[{"signature":"N/A","account_number":"0","sequence":"0","pub_key":{"type":"tendermint/PubKeySecp256k1","value":"PK"}}]}}';
 
     console.log(JSON.stringify(txDelegation, null, 2));
     expect(jsonStr).toBe(expectedJsonStr);
@@ -73,10 +73,8 @@ test('get bytes to sign', async () => {
         'some_memo',
     );
 
-    const bytes = txs.getBytesToSign(txDelegation, txContext);
-
-    const jsonStr = JSON.stringify(bytes);
+    const jsonStr = txs.getBytesToSign(txDelegation, txContext);
     const expectedJsonStr = '{"account_number":"0","chain_id":"test_chain","fee":{"amount":[{"amount":"3750","denom":"uatom"}],"gas":"150000"},"memo":"some_memo","msgs":[{"type":"cosmos-sdk/MsgDelegate","value":{"amount":{"amount":"100","denom":"uatom"},"delegator_address":"my_addr","validator_address":"val_addr"}}],"sequence":"0"}';
-    console.log(JSON.stringify(bytes, null, 2));
+    console.log(jsonStr);
     expect(jsonStr).toBe(expectedJsonStr);
 });

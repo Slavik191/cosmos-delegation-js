@@ -30,8 +30,9 @@ function canonicalizeJson(jsonTx) {
     const tmp = {};
     Object.keys(jsonTx).sort().forEach((key) => {
         // eslint-disable-next-line no-unused-expressions
-        jsonTx[key] != null && (tmp[key] = canonicalizeJson(jsonTx[key]));
+        jsonTx[key] != null && (tmp[key] = jsonTx[key]);
     });
+
     return tmp;
 }
 
@@ -49,7 +50,7 @@ function getBytesToSign(tx, txContext) {
         sequence: txContext.sequence.toString(),
     };
 
-    return canonicalizeJson(txFieldsToSign);
+    return JSON.stringify(canonicalizeJson(txFieldsToSign));
 }
 
 function applyGas(unsignedTx, gas) {
@@ -59,11 +60,11 @@ function applyGas(unsignedTx, gas) {
 
     // eslint-disable-next-line no-param-reassign
     unsignedTx.value.fee = {
-        gas: gas.toString(),
         amount: [{
-            denom: DEFAULT_DENOM,
             amount: (gas * DEFAULT_GAS_PRICE).toString(),
+            denom: DEFAULT_DENOM,
         }],
+        gas: gas.toString(),
     };
 
     return unsignedTx;
@@ -123,12 +124,12 @@ function createDelegate(txContext, validatorBech32, uatomAmount, memo) {
     const txMsg = {
         type: 'cosmos-sdk/MsgDelegate',
         value: {
-            delegator_address: txContext.bech32,
-            validator_address: validatorBech32,
             amount: {
                 amount: uatomAmount.toString(),
                 denom: 'uatom',
             },
+            delegator_address: txContext.bech32,
+            validator_address: validatorBech32,
         },
     };
 
@@ -147,8 +148,8 @@ function createUndelegate(txContext, validatorBech32, sharesAmount, memo) {
         type: 'cosmos-sdk/MsgUndelegate',
         value: {
             delegator_address: txContext.bech32,
-            validator_address: validatorBech32,
             shares: sharesAmount.toString(),
+            validator_address: validatorBech32,
         },
     };
 
@@ -166,9 +167,9 @@ function createRedelegate(txContext, validatorSourceBech32, validatorDestBech32,
     const txMsg = {
         type: 'cosmos-sdk/MsgUndelegate',
         value: {
-            validator_src_address: validatorSourceBech32,
-            validator_dst_address: validatorDestBech32,
             shares_amount: sharesAmount.toString(),
+            validator_dst_address: validatorDestBech32,
+            validator_src_address: validatorSourceBech32,
         },
     };
 

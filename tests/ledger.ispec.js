@@ -19,7 +19,7 @@ import CosmosDelegateTool from 'index.js';
 test('connect', async () => {
     const cdt = new CosmosDelegateTool();
 
-    cdt.debug = true;
+    cdt.transportDebug = true;
     cdt.switchTransportToHID();
     await cdt.connect();
 
@@ -30,7 +30,7 @@ test('connect', async () => {
 test('get address', async () => {
     const cdt = new CosmosDelegateTool();
 
-    cdt.debug = true;
+    cdt.transportDebug = true;
     cdt.switchTransportToHID();
 
     await cdt.connect();
@@ -46,7 +46,10 @@ test('get address', async () => {
 test('get balance', async () => {
     const cdt = new CosmosDelegateTool();
 
-    cdt.debug = true;
+    // retrieving many public keys can be slow
+    jest.setTimeout(10000);
+
+    cdt.transportDebug = true;
     cdt.switchTransportToHID();
 
     await cdt.connect();
@@ -68,7 +71,7 @@ test('scan addresses', async () => {
     // retrieving many public keys can be slow
     jest.setTimeout(10000);
 
-    cdt.debug = true;
+    cdt.transportDebug = true;
     cdt.switchTransportToHID();
 
     await cdt.connect();
@@ -102,7 +105,7 @@ test('scan and get balances', async () => {
     // retrieving many public keys can be slow
     jest.setTimeout(10000);
 
-    cdt.debug = true;
+    cdt.transportDebug = true;
     cdt.switchTransportToHID();
 
     await cdt.connect();
@@ -123,19 +126,29 @@ test('sign tx', async () => {
     // retrieving many public keys can be slow
     jest.setTimeout(45000);
 
-    cdt.debug = true;
+    cdt.transportDebug = true;
     cdt.switchTransportToHID();
 
     await cdt.connect();
     expect(cdt.connected).toBe(true);
     expect(cdt.lastError).toBe('No error');
 
-    const account = 0;
-    const index = 0;
-    const dummyTx = '{"account_number":1,"chain_id":"some_chain","fee":{"amount":[{"amount":10,"denom":"DEN"}],"gas":5},"memo":"MEMO","msgs":["SOMETHING"],"sequence":3}';
-    const signedTx = await cdt.sign(account, index, dummyTx);
+    const txContext = {
+        accountNumber: 0,
+        chainId: 'some_chain',
+        path: [44, 118, 0, 0, 0],
+        sequence: 0,
+        pk: '034fef9cd7c4c63588d3b03feb5281b9d232cba34d6f3d71aee59211ffbfe1fe87',
+    };
 
-    expect(signedTx.error_message).toBe('No errors');
-    expect(signedTx.return_code).toBe(0x9000);
-    expect(signedTx.signature.length).toBe(70);
+    const dummyTx = cdt.txCreateDelegate(
+        txContext,
+        'validatorAddress',
+        100,
+        'some_memo',
+    );
+
+    const signedTx = await cdt.sign(dummyTx, txContext);
+
+    console.log(signedTx);
 });

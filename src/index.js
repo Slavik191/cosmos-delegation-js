@@ -405,7 +405,7 @@ CosmosDelegateTool.prototype.txCreateRedelegate = async function (
 CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
     const txBody = {
         tx: signedTx.value,
-        mode: 'block',
+        mode: 'async',
     };
 
     const url = `${this.resturl}/txs`;

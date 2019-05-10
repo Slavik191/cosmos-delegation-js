@@ -24,7 +24,8 @@
     "@babel/runtime": "^7.4.4",
     "axios": "^0.18.0",
     "big.js": "^5.2.2",
-    "ledger-cosmos-js": "https://github.com/cosmos/ledger-cosmos-js"
+    "ledger-cosmos-js": "https://github.com/cosmos/ledger-cosmos-js",
+    "secp256k1": "3.6.2"
   },
   "devDependencies": {
     "@babel/cli": "^7.4.4",
@@ -40,8 +41,7 @@
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.17.2",
     "eslint-plugin-jest": "^22.5.1",
-    "jest": "^24.7.1",
-    "secp256k1": "3.6.2"
+    "jest": "^24.7.1"
   },
   "scripts": {
     "build": "babel src --out-dir dist",

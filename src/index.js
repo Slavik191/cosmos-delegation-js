@@ -19,6 +19,7 @@ import {
 } from 'ledger-cosmos-js';
 import axios from 'axios';
 import Big from 'big.js';
+import secp256k1 from 'secp256k1';
 import txs from './txs';
 
 const defaultHrp = 'cosmos';
@@ -161,7 +162,9 @@ CosmosDelegateTool.prototype.sign = async function (unsignedTx, txContext) {
         throw new Error(response.error_message);
     }
 
-    return txs.applySignature(unsignedTx, txContext, response.signature);
+    const sig = secp256k1.signatureImport(response.signature);
+
+    return txs.applySignature(unsignedTx, txContext, sig);
 };
 
 // Retrieve public key and bech32 address

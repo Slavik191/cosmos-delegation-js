@@ -4,6 +4,7 @@
 module.exports = {
     modulePaths: [
         '<rootDir>/src',
+        '<rootDir>/tests',
     ],
     // All imported modules in your tests should be mocked automatically
     // automock: false,

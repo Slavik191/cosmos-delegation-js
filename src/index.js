@@ -34,7 +34,8 @@ const CosmosDelegateTool = function () {
     this.timeoutMS = 45000;
     this.transportDebug = false;
 
-    this.resturl = 'https://stargate.cosmos.network';
+    this.resturl = 'http://127.0.0.1:1317';
+    // this.resturl = 'https://stargate.cosmos.network';
     //    this.resturl = 'https://lcd.nylira.net';
 
     this.requiredVersionMajor = 1;
@@ -71,14 +72,22 @@ function getTimeout(cdt) {
 function wrapError(cdt, e) {
     try {
         // eslint-disable-next-line no-param-reassign
-        cdt.lastError = e.response.data.error;
+        let errMessage = '';
+        if (typeof e.response === 'undefined') {
+            errMessage = e.message;
+        } else {
+            errMessage = e.response.data.error;
+        }
+
+        cdt.lastError = errMessage;
         return {
-            error: e.response.data.error,
+            error: errMessage,
         };
     } catch (e2) {
-        this.lastError = e2.message;
+        // eslint-disable-next-line no-param-reassign
+        cdt.lastError = `${e.message}  ${e2.message}`;
         return {
-            error: e2.message,
+            error: `${e.message}  ${e2.message}`,
         };
     }
 }
@@ -222,9 +231,12 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
             if (typeof r.data !== 'undefined' && typeof r.data.value !== 'undefined') {
                 txContext.sequence = Number(r.data.value.sequence).toString();
                 txContext.accountNumber = Number(r.data.value.account_number).toString();
-                const tmp = r.data.value.coins.filter(x => x.denom === 'uatom');
-                if (tmp.length > 0) {
-                    txContext.balanceuAtom = Big(tmp[0].amount).toString();
+
+                if (r.data.value.coins !== null) {
+                    const tmp = r.data.value.coins.filter(x => x.denom === txs.DEFAULT_DENOM);
+                    if (tmp.length > 0) {
+                        txContext.balanceuAtom = Big(tmp[0].amount).toString();
+                    }
                 }
             }
         } catch (e) {
@@ -304,45 +316,87 @@ CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
 
 // Creates a new delegation tx based on the input parameters
 // this function expect that retrieve balances has been called before
-CosmosDelegateTool.prototype.txCreateDelegate = (
+CosmosDelegateTool.prototype.txCreateDelegate = async function (
     txContext,
     validatorBech32,
     uatomAmount,
     memo,
-) => txs.createDelegate(
-    txContext,
-    validatorBech32,
-    uatomAmount,
-    memo,
-);
+) {
+    if (typeof txContext === 'undefined') {
+        throw new Error('undefined txContext');
+    }
+    if (typeof txContext.bech32 === 'undefined') {
+        throw new Error('txContext does not contain the source address (bech32)');
+    }
+
+    const accountInfo = await this.getAccountInfo(txContext);
+    // eslint-disable-next-line no-param-reassign
+    txContext.accountNumber = accountInfo.accountNumber;
+    // eslint-disable-next-line no-param-reassign
+    txContext.sequence = accountInfo.sequence;
+
+    return txs.createDelegate(
+        txContext,
+        validatorBech32,
+        uatomAmount,
+        memo,
+    );
+}
+
 
 // Creates a new undelegation tx based on the input parameters
 // this function expect that retrieve balances has been called before
-CosmosDelegateTool.prototype.txCreateUndelegate = (
+CosmosDelegateTool.prototype.txCreateUndelegate = async function (
     txContext,
     validatorBech32,
     sharesAmount,
     memo,
-) => txs.createUndelegate(
-    txContext,
-    validatorBech32,
-    sharesAmount,
-    memo,
-);
+) {
+    if (typeof txContext === 'undefined') {
+        throw new Error('undefined txContext');
+    }
+    if (typeof txContext.bech32 === 'undefined') {
+        throw new Error('txContext does not contain the source address (bech32)');
+    }
+
+    const accountInfo = await this.getAccountInfo(txContext.bech32);
+    txContext.accountNumber = accountInfo.accountNumber;
+    txContext.sequence = accountInfo.sequence;
+
+    return txs.createUndelegate(
+        txContext,
+        validatorBech32,
+        sharesAmount,
+        memo,
+    );
+};
 
 // Creates a new staking tx based on the input parameters
 // this function expect that retrieve balances has been called before
-CosmosDelegateTool.prototype.txCreateRedelegate = (
+CosmosDelegateTool.prototype.txCreateRedelegate = async function (
     txContext,
     validatorSourceBech32,
     validatorDestBech32,
     sharesAmount,
     memo,
-) => txs.createRedelegate(txContext,
-    validatorSourceBech32,
-    validatorDestBech32,
-    sharesAmount,
-    memo);
+) {
+    if (typeof txContext === 'undefined') {
+        throw new Error('undefined txContext');
+    }
+    if (typeof txContext.bech32 === 'undefined') {
+        throw new Error('txContext does not contain the source address (bech32)');
+    }
+
+    const accountInfo = await this.getAccountInfo(txContext.bech32);
+    txContext.accountNumber = accountInfo.accountNumber;
+    txContext.sequence = accountInfo.sequence;
+
+    return txs.createRedelegate(txContext,
+        validatorSourceBech32,
+        validatorDestBech32,
+        sharesAmount,
+        memo);
+};
 
 // Relays a signed transaction and returns a transaction hash
 CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {

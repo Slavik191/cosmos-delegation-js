@@ -16,33 +16,34 @@
 // eslint-disable-next-line import/extensions,import/no-unresolved
 import CosmosDelegateTool from 'index.js';
 import txs from 'txs';
+import {getWallet, signWithMnemonic} from 'utils.js';
 
 // TODO: Improve these tests by mocking node rest responses
 
 test('get account info', async () => {
     const cdt = new CosmosDelegateTool();
 
-    const addr = {bech32: 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt'};
+    const addr = {bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp'};
     const answer = await cdt.getAccountInfo(addr);
 
-    expect(answer.sequence).toEqual('66');
-    expect(answer.balanceuAtom.toString()).toEqual('1148');
+    expect(answer).toHaveProperty('sequence');
+    expect(answer).toHaveProperty('balanceuAtom');
 });
 
 test('get multiple accounts', async () => {
     const cdt = new CosmosDelegateTool();
 
     const addrs = [
-        {bech32: 'cosmos1000ya26q2cmh399q4c5aaacd9lmmdqp92z6l7q'},
-        {bech32: 'cosmos102ruvpv2srmunfffxavttxnhezln6fnc3pf7tt'},
+        {bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp'},
+        {bech32: 'cosmos19krh5y8y5wce3mmj3dxffyc7hgu9tsxndsmmml'},
     ];
 
     const reply = await cdt.retrieveBalances(addrs);
 
     console.log(JSON.stringify(reply, null, 4));
 
-    expect(reply[0].balanceuAtom).toEqual('68991123');
-    expect(reply[1].balanceuAtom).toEqual('1148');
+    expect(reply[0]).toHaveProperty('balanceuAtom');
+    expect(reply[1]).toHaveProperty('balanceuAtom');
 });
 
 test('get multiple accounts 2', async () => {
@@ -50,9 +51,8 @@ test('get multiple accounts 2', async () => {
 
     const addrs = [
         {
-            pk: '02117e3f0b7528e2b06670d5adcdae089a27d3e5d2f61bb53652397f31b97e59e3',
             path: [44, 118, 0, 0, 0],
-            bech32: 'cosmos1vu7su5av76usjegnpdeqyxpnpknmtrlz9nzsnh',
+            bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
         },
         {
             pk: '021fde41bbaf3ca7567d8b9f0b6423cb4405f9897d175a826192af551bf30764f8',
@@ -90,17 +90,15 @@ test('create delegate tx', async () => {
     const cdt = new CosmosDelegateTool();
 
     const txContext = {
-        chainId: 'cosmoshub-2',
-        bech32: 'cosmos1qpd4xgtqmxyf9ktjh757nkdfnzpnkamny3cpzv',
-        accountNumber: '0',
-        sequence: '0',
+        chainId: 'testing',
+        bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
     };
 
     const validatorAddrBech32 = 'cosmosvaloper1zyp0axz2t55lxkmgrvg4vpey2rf4ratcsud07t';
-    const uAtomAmount = 10000;
+    const uAtomAmount = 100;
     const memo = 'some message';
 
-    const unsignedTx = cdt.txCreateDelegate(txContext, validatorAddrBech32, uAtomAmount, memo);
+    const unsignedTx = await cdt.txCreateDelegate(txContext, validatorAddrBech32, uAtomAmount, memo);
 
     console.log(unsignedTx);
 });
@@ -108,24 +106,33 @@ test('create delegate tx', async () => {
 test('relay delegation tx', async () => {
     const cdt = new CosmosDelegateTool();
 
-    const validatorAddrBech32 = 'cosmosvaloper1zyp0axz2t55lxkmgrvg4vpey2rf4ratcsud07t';
-    const uAtomAmount = 10000;
+    const validatorAddrBech32 = 'cosmosvaloper19krh5y8y5wce3mmj3dxffyc7hgu9tsxngy0whv';
+    const uAtomAmount = 100000;
     const memo = 'some message';
 
     const txContext = {
-        chainId: 'cosmoshub-2',
-        bech32: 'cosmos1g9ahr6xhht5rmqven628nklxluzyv8z9jqjcmc',
-        pk: '02117e3f0b7528e2b06670d5adcdae089a27d3e5d2f61bb53652397f31b97e59e3',
-        accountNumber: '0',
-        sequence: '1',
+        chainId: 'testing',
+        bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
+        pk: '028284dfb203d9a702eb6d60ea7bcf37b7099f66d363ac024a9b249859bfb7dc3e',
     };
 
     // Create a delegation transaction
-    const unsignedTx = cdt.txCreateDelegate(txContext, validatorAddrBech32, uAtomAmount, memo);
+    const unsignedTx = await cdt.txCreateDelegate(txContext, validatorAddrBech32, uAtomAmount, memo);
 
-    // This is faking the signature, in practice this should be using a ledger via cdt.sign()
-    const fakeSignature = 'MEUCIQD02fsDPra8MtbRsyB1w7bqTM55Wu138zQbFcWx4+CFyAIge5WNPfKIuvzBZ69MyqHsqD8S1IwiEp+iUb6VSdtlpgY=';
-    const signedTx = txs.applySignature(unsignedTx, txContext, fakeSignature);
+    const bts = txs.getBytesToSign(unsignedTx, txContext);
+    console.log(bts);
+    console.log(bts.length);
+
+    // Sign locally using mnemonic
+    const mnemonic = 'table artist summer collect crack cruel lunar love gorilla road peanut wrestle system skirt shoulder female claim cannon price frost pole fury ranch fabric';
+    const wallet = getWallet(mnemonic);
+    expect(wallet.publicKey).toEqual(txContext.pk);
+
+    const signature = signWithMnemonic(bts, wallet);
+
+    const signedTx = txs.applySignature(unsignedTx, txContext, signature);
+
+    console.log(JSON.stringify(signedTx, null, 4));
 
     // Now submit the transaction
     const response = await cdt.txSubmit(signedTx);
@@ -139,14 +146,11 @@ test('get bytes to sign', async () => {
     const cdt = new CosmosDelegateTool();
 
     const txContext = {
-        accountNumber: 0,
         chainId: 'some_chain',
-        path: [44, 118, 0, 0, 0],
-        sequence: 0,
-        pk: '034fef9cd7c4c63588d3b03feb5281b9d232cba34d6f3d71aee59211ffbfe1fe87',
+        bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp'
     };
 
-    const dummyTx = cdt.txCreateDelegate(
+    const dummyTx = await cdt.txCreateDelegate(
         txContext,
         'validatorAddress',
         100,
@@ -158,12 +162,12 @@ test('get bytes to sign', async () => {
     console.log(bytesToSign);
 });
 
-test('get tx status', async () => {
+test('get tx status - unknown', async () => {
     const cdt = new CosmosDelegateTool();
 
-    const txHash = '2F5A18C53E8120EB82C10BE62AB446C8B7B59629372580C5BB190AF0F7BAEC24';
+    const txHash = '0000000000000000000000000000000000000000000000000000000000000000';
     const status = await cdt.txStatus(txHash);
 
-    console.log(JSON.stringify(status, null, 4));
-    expect(status.height).toEqual('115588');
+    console.log(status);
+    expect(status.error).toEqual('Tx: Response error: RPC error -32603 - Internal error: Tx (0000000000000000000000000000000000000000000000000000000000000000) not found');
 });

@@ -134,10 +134,8 @@ test('sign tx', async () => {
     expect(cdt.lastError).toBeNull();
 
     const txContext = {
-        accountNumber: 0,
         chainId: 'some_chain',
         path: [44, 118, 0, 0, 0],
-        sequence: 0,
         pk: '034fef9cd7c4c63588d3b03feb5281b9d232cba34d6f3d71aee59211ffbfe1fe87',
     };
 

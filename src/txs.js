@@ -15,7 +15,7 @@
  ******************************************************************************* */
 
 const DEFAULT_DENOM = 'uatom';
-const DEFAULT_GAS = 150000;
+const DEFAULT_GAS = 200000;
 const DEFAULT_GAS_PRICE = 0.025;
 const DEFAULT_MEMO = '';
 
@@ -40,6 +40,15 @@ function getBytesToSign(tx, txContext) {
     if (typeof txContext === 'undefined') {
         throw new Error('txContext is not defined');
     }
+    if (typeof txContext.chainId === 'undefined') {
+        throw new Error('txContext does not contain the chainId');
+    }
+    if (typeof txContext.accountNumber === 'undefined') {
+        throw new Error('txContext does not contain the accountNumber');
+    }
+    if (typeof txContext.sequence === 'undefined') {
+        throw new Error('txContext does not contain the sequence value');
+    }
 
     const txFieldsToSign = {
         account_number: txContext.accountNumber.toString(),
@@ -57,13 +66,17 @@ function applyGas(unsignedTx, gas) {
     if (typeof unsignedTx === 'undefined') {
         throw new Error('undefined unsignedTx');
     }
+    if (typeof gas === 'undefined') {
+        throw new Error('undefined gas');
+    }
 
     // eslint-disable-next-line no-param-reassign
     unsignedTx.value.fee = {
-        amount: [{
-            amount: (gas * DEFAULT_GAS_PRICE).toString(),
-            denom: DEFAULT_DENOM,
-        }],
+        // amount: [{
+        //     amount: (gas * DEFAULT_GAS_PRICE).toString(),
+        //     denom: DEFAULT_DENOM,
+        // }],
+        amount: [],
         gas: gas.toString(),
     };
 
@@ -71,8 +84,16 @@ function applyGas(unsignedTx, gas) {
 }
 
 // Creates a new tx skeleton
-function createSkeleton() {
-    // TODO: Move to typescript?
+function createSkeleton(txContext) {
+    if (typeof txContext === 'undefined') {
+        throw new Error('undefined txContext');
+    }
+    if (typeof txContext.accountNumber === 'undefined') {
+        throw new Error('txContext does not contain the accountNumber');
+    }
+    if (typeof txContext.sequence === 'undefined') {
+        throw new Error('txContext does not contain the sequence value');
+    }
     const txSkeleton = {
         type: 'auth/StdTx',
         value: {
@@ -81,8 +102,8 @@ function createSkeleton() {
             memo: DEFAULT_MEMO,
             signatures: [{
                 signature: 'N/A',
-                account_number: '0',
-                sequence: '0',
+                account_number: txContext.accountNumber.toString(),
+                sequence: txContext.sequence.toString(),
                 pub_key: {
                     type: 'tendermint/PubKeySecp256k1',
                     value: 'PK',
@@ -100,8 +121,18 @@ function applySignature(unsignedTx, txContext, secp256k1Sig) {
     if (typeof txContext === 'undefined') {
         throw new Error('undefined txContext');
     }
+    if (typeof txContext.pk === 'undefined') {
+        throw new Error('txContext does not contain the public key (pk)');
+    }
+    if (typeof txContext.accountNumber === 'undefined') {
+        throw new Error('txContext does not contain the accountNumber');
+    }
+    if (typeof txContext.sequence === 'undefined') {
+        throw new Error('txContext does not contain the sequence value');
+    }
 
     const tmpCopy = Object.assign({}, unsignedTx, {});
+    // TODO: Fill this info
     tmpCopy.value.signatures = [
         {
             signature: secp256k1Sig.toString('base64'),
@@ -119,14 +150,14 @@ function applySignature(unsignedTx, txContext, secp256k1Sig) {
 // Creates a new delegation tx based on the input parameters
 // the function expects a complete txContext
 function createDelegate(txContext, validatorBech32, uatomAmount, memo) {
-    const txSkeleton = createSkeleton();
+    const txSkeleton = createSkeleton(txContext);
 
     const txMsg = {
         type: 'cosmos-sdk/MsgDelegate',
         value: {
             amount: {
                 amount: uatomAmount.toString(),
-                denom: 'uatom',
+                denom: DEFAULT_DENOM,
             },
             delegator_address: txContext.bech32,
             validator_address: validatorBech32,
@@ -142,7 +173,7 @@ function createDelegate(txContext, validatorBech32, uatomAmount, memo) {
 // Creates a new undelegation tx based on the input parameters
 // the function expects a complete txContext
 function createUndelegate(txContext, validatorBech32, sharesAmount, memo) {
-    const txSkeleton = createSkeleton();
+    const txSkeleton = createSkeleton(txContext);
 
     const txMsg = {
         type: 'cosmos-sdk/MsgUndelegate',
@@ -162,11 +193,11 @@ function createUndelegate(txContext, validatorBech32, sharesAmount, memo) {
 // Creates a new redelegation tx based on the input parameters
 // the function expects a complete txContext
 function createRedelegate(txContext,
-    validatorSourceBech32,
-    validatorDestBech32,
-    sharesAmount,
-    memo) {
-    const txSkeleton = createSkeleton();
+                          validatorSourceBech32,
+                          validatorDestBech32,
+                          sharesAmount,
+                          memo) {
+    const txSkeleton = createSkeleton(txContext);
 
     const txMsg = {
         type: 'cosmos-sdk/MsgUndelegate',
@@ -184,6 +215,7 @@ function createRedelegate(txContext,
 }
 
 export default {
+    DEFAULT_DENOM,
     createSkeleton,
     createDelegate,
     createRedelegate,

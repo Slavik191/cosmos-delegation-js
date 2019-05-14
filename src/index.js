@@ -35,9 +35,7 @@ const CosmosDelegateTool = function () {
     this.timeoutMS = 45000;
     this.transportDebug = false;
 
-    this.resturl = 'http://127.0.0.1:1317';
-    // this.resturl = 'https://stargate.cosmos.network';
-    //    this.resturl = 'https://lcd.nylira.net';
+    this.resturl = null;
 
     this.requiredVersionMajor = 1;
     this.requiredVersionMinor = 1;
@@ -80,6 +78,7 @@ function wrapError(cdt, e) {
             errMessage = e.response.data.error;
         }
 
+        // eslint-disable-next-line no-param-reassign
         cdt.lastError = errMessage;
         return {
             error: errMessage,
@@ -91,6 +90,13 @@ function wrapError(cdt, e) {
             error: `${e.message}  ${e2.message}`,
         };
     }
+}
+
+function nodeURL(cdt) {
+    if (typeof cdt.resturl === 'undefined' || cdt.resturl === null) {
+        throw new Error('Node URL has not been defined');
+    }
+    return cdt.resturl;
 }
 
 // Detect when a ledger device is connected and verify the cosmos app is running.
@@ -204,7 +210,7 @@ CosmosDelegateTool.prototype.scanAddresses = async function (minAccount, maxAcco
 };
 
 CosmosDelegateTool.prototype.retrieveValidators = async function () {
-    const url = `${this.resturl}/staking/validators`;
+    const url = `${nodeURL(this)}/staking/validators`;
     const validators = {};
     const requestValidators = axios.get(url).then((r) => {
         for (let i = 0; i < r.data.length; i += 1) {
@@ -221,7 +227,7 @@ CosmosDelegateTool.prototype.retrieveValidators = async function () {
 };
 
 CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
-    const url = `${this.resturl}/auth/accounts/${addr.bech32}`;
+    const url = `${nodeURL(this)}/auth/accounts/${addr.bech32}`;
 
     const txContext = {
         sequence: '0',
@@ -249,63 +255,65 @@ CosmosDelegateTool.prototype.getAccountInfo = async function (addr) {
     }, e => wrapError(this, e));
 };
 
+CosmosDelegateTool.prototype.getAccountDelegations = async function (validators, addr) {
+    const url = `${nodeURL(this)}/staking/delegators/${addr.bech32}/delegations`;
+    return axios.get(url).then((r) => {
+        const txContext = {
+            delegations: {},
+            delegationsTotaluAtoms: '0',
+        };
+
+        const delegations = {};
+        let totalDelegation = Big(0);
+
+        try {
+            if (typeof r.data !== 'undefined' && r.data !== null) {
+                for (let i = 0; i < r.data.length; i += 1) {
+                    const t = r.data[i];
+                    const valAddr = t.validator_address;
+
+                    if (valAddr in validators) {
+                        const shares = Big(t.shares);
+                        const valData = validators[valAddr];
+                        const valTokens = valData.tokens;
+                        const valTotalShares = valData.totalShares;
+                        const tokens = shares.times(valTokens).div(valTotalShares);
+
+                        delegations[valAddr] = {
+                            uatoms: tokens.toString(),
+                            shares: shares.toString(),
+                        };
+
+                        totalDelegation = totalDelegation.add(tokens);
+                    }
+                }
+            }
+        } catch (e) {
+            console.log('Error ', e, ' returning defaults');
+        }
+
+        txContext.delegations = delegations;
+        txContext.delegationsTotaluAtoms = totalDelegation.toString();
+
+        return txContext;
+    }, e => wrapError(this, e));
+};
+
 // Retrieve atom balances from the network for a list of account
 // Retrieve delegated/not-delegated balances for each account
 CosmosDelegateTool.prototype.retrieveBalances = async function (addressList) {
+    const validators = await this.retrieveValidators();
+
     // Get all balances
     const requestsBalance = addressList.map(async (addr, index) => {
         const txContext = await this.getAccountInfo(addr);
         return Object.assign({}, addressList[index], txContext);
     });
 
-    const validators = await this.retrieveValidators();
+    // eslint-disable-next-line max-len,no-unused-vars
+    const requestsDelegations = addressList.map((addr, index) => this.getAccountDelegations(validators, addr));
 
-    // Get all delegations
-    // eslint-disable-next-line no-unused-vars
-    const requestsDelegations = addressList.map((addr, index) => {
-        // TODO: move to its own method
-        const url = `${this.resturl}/staking/delegators/${addr.bech32}/delegations`;
-        return axios.get(url).then((r) => {
-            const txContext = {
-                delegations: {},
-                delegationsTotaluAtoms: '0',
-            };
-
-            const delegations = {};
-            let totalDelegation = Big(0);
-
-            try {
-                if (typeof r.data !== 'undefined' && r.data !== null) {
-                    for (let i = 0; i < r.data.length; i += 1) {
-                        const t = r.data[i];
-                        const valAddr = t.validator_address;
-
-                        if (valAddr in validators) {
-                            const shares = Big(t.shares);
-                            const valData = validators[valAddr];
-                            const valTokens = valData.tokens;
-                            const valTotalShares = valData.totalShares;
-                            const tokens = shares.times(valTokens).div(valTotalShares);
-
-                            delegations[valAddr] = {
-                                uatoms: tokens.toString(),
-                                shares: shares.toString(),
-                            };
-                            totalDelegation = totalDelegation.add(tokens);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log('Error ', e, ' returning defaults');
-            }
-
-            txContext.delegations = delegations;
-            txContext.delegationsTotaluAtoms = totalDelegation.toString();
-
-            return txContext;
-        }, e => wrapError(this, e));
-    });
-
+    // eslint-disable-next-line no-unused-vars,max-len
     const balances = await Promise.all(requestsBalance);
     const delegations = await Promise.all(requestsDelegations);
 
@@ -363,7 +371,9 @@ CosmosDelegateTool.prototype.txCreateUndelegate = async function (
     }
 
     const accountInfo = await this.getAccountInfo(txContext);
+    // eslint-disable-next-line no-param-reassign
     txContext.accountNumber = accountInfo.accountNumber;
+    // eslint-disable-next-line no-param-reassign
     txContext.sequence = accountInfo.sequence;
 
     return txs.createUndelegate(
@@ -391,7 +401,9 @@ CosmosDelegateTool.prototype.txCreateRedelegate = async function (
     }
 
     const accountInfo = await this.getAccountInfo(txContext);
+    // eslint-disable-next-line no-param-reassign
     txContext.accountNumber = accountInfo.accountNumber;
+    // eslint-disable-next-line no-param-reassign
     txContext.sequence = accountInfo.sequence;
 
     return txs.createRedelegate(txContext,
@@ -408,14 +420,14 @@ CosmosDelegateTool.prototype.txSubmit = async function (signedTx) {
         mode: 'async',
     };
 
-    const url = `${this.resturl}/txs`;
-    return await axios.post(url, JSON.stringify(txBody)).then(r => r, e => wrapError(this, e));
+    const url = `${nodeURL(this)}/txs`;
+    return axios.post(url, JSON.stringify(txBody)).then(r => r, e => wrapError(this, e));
 };
 
 // Retrieve the status of a transaction hash
 CosmosDelegateTool.prototype.txStatus = async function (txHash) {
-    const url = `${this.resturl}/txs/${txHash}`;
-    return await axios.get(url).then(r => r.data, e => wrapError(this, e));
+    const url = `${nodeURL(this)}/txs/${txHash}`;
+    return axios.get(url).then(r => r.data, e => wrapError(this, e));
 };
 
 module.exports = CosmosDelegateTool;

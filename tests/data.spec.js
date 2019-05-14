@@ -16,78 +16,147 @@
 // eslint-disable-next-line import/extensions,import/no-unresolved
 import CosmosDelegateTool from 'index.js';
 import txs from 'txs';
-import {getWallet, signWithMnemonic} from 'utils.js';
+import { getWallet, signWithMnemonic } from 'utils.js';
 
-// TODO: Improve these tests by mocking node rest responses
+import axios from 'axios';
+import MockAdapter from 'axios-mock-adapter';
 
-test('get account info', async () => {
+test('get account info - default values', async () => {
+    const mock = new MockAdapter(axios);
+    mock.onGet('mockNode/auth/accounts/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp').reply(
+        200,
+        {},
+    );
+
     const cdt = new CosmosDelegateTool();
+    cdt.setNodeURL('mockNode');
 
-    const addr = {bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp'};
+    const addr = { bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp' };
     const answer = await cdt.getAccountInfo(addr);
 
-    expect(answer).toHaveProperty('sequence');
-    expect(answer).toHaveProperty('balanceuAtom');
+    expect(answer).toHaveProperty('sequence', '0');
+    expect(answer).toHaveProperty('accountNumber', '0');
+    expect(answer).toHaveProperty('balanceuAtom', '0');
+});
+
+test('get account info - parsing', async () => {
+    const mock = new MockAdapter(axios);
+    mock.onGet('mockNode/auth/accounts/someaddress').reply(
+        200, {
+            value: {
+                sequence: 10,
+                account_number: 20,
+                coins: [{ amount: 15, denom: 'uatom' }, { amount: 20, denom: 'other' }],
+            },
+        },
+    );
+
+    const cdt = new CosmosDelegateTool();
+    cdt.setNodeURL('mockNode');
+
+    const addr = { bech32: 'someaddress' };
+    const answer = await cdt.getAccountInfo(addr);
+
+    expect(answer).toHaveProperty('sequence', '10');
+    expect(answer).toHaveProperty('accountNumber', '20');
+    expect(answer).toHaveProperty('balanceuAtom', '15');
 });
 
 test('get multiple accounts', async () => {
     const cdt = new CosmosDelegateTool();
+    cdt.setNodeURL('mockNodeURL');
+
+    const mock = new MockAdapter(axios);
+    mock.onGet('mockNodeURL/staking/validators').reply(
+        200, [
+            {
+                operator_address: 'some_validator_bech32',
+                tokens: '123456789',
+                delegator_shares: '123456789',
+            },
+            {
+                operator_address: 'some_other_validator_bech32',
+                tokens: '2222',
+                delegator_shares: '4444',
+            },
+        ],
+    );
+    mock.onGet('mockNodeURL/auth/accounts/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp').reply(
+        200, {
+            value: {
+                sequence: 12,
+                account_number: 34,
+                coins: [{ amount: 56, denom: 'uatom' }, { amount: 20, denom: 'other' }],
+            },
+        },
+    );
+    mock.onGet('mockNodeURL/staking/delegators/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp/delegations').reply(
+        200, [
+            {
+                delegator_address: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
+                validator_address: 'some_validator_bech32',
+                shares: '1000',
+                height: 0,
+            },
+            {
+                delegator_address: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
+                validator_address: 'some_other_validator_bech32',
+                shares: '100',
+                height: 0,
+            },
+        ],
+    );
+    mock.onGet('mockNodeURL/auth/accounts/cosmos19krh5y8y5wce3mmj3dxffyc7hgu9tsxndsmmml').reply(
+        200, {
+            value: {
+                sequence: 67,
+                account_number: 89,
+                coins: [{ amount: 1011, denom: 'uatom' }, { amount: 20, denom: 'other' }],
+            },
+        },
+    );
+    mock.onGet('mockNodeURL/staking/delegators/cosmos19krh5y8y5wce3mmj3dxffyc7hgu9tsxndsmmml/delegations').reply(
+        200, {},
+    );
 
     const addrs = [
-        {bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp'},
-        {bech32: 'cosmos19krh5y8y5wce3mmj3dxffyc7hgu9tsxndsmmml'},
+        { bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp' },
+        { bech32: 'cosmos19krh5y8y5wce3mmj3dxffyc7hgu9tsxndsmmml' },
     ];
 
     const reply = await cdt.retrieveBalances(addrs);
-
     console.log(JSON.stringify(reply, null, 4));
 
-    expect(reply[0]).toHaveProperty('balanceuAtom');
-    expect(reply[1]).toHaveProperty('balanceuAtom');
+    expect(reply[0]).toHaveProperty('sequence', '12');
+    expect(reply[0]).toHaveProperty('accountNumber', '34');
+    expect(reply[0]).toHaveProperty('balanceuAtom', '56');
+    expect(reply[0]).toHaveProperty('delegationsTotaluAtoms', '1050');
+    expect(reply[0]).toHaveProperty('delegations');
+    expect(Object.keys(reply[0].delegations).length).toEqual(2);
+
+    expect(reply[1]).toHaveProperty('sequence', '67');
+    expect(reply[1]).toHaveProperty('accountNumber', '89');
+    expect(reply[1]).toHaveProperty('balanceuAtom', '1011');
+    expect(reply[1]).toHaveProperty('delegationsTotaluAtoms', '0');
+    expect(reply[1]).toHaveProperty('delegations');
+    expect(Object.keys(reply[1].delegations).length).toEqual(0);
 });
-
-test('get multiple accounts 2', async () => {
-    const cdt = new CosmosDelegateTool();
-
-    const addrs = [
-        {
-            path: [44, 118, 0, 0, 0],
-            bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
-        },
-        {
-            pk: '021fde41bbaf3ca7567d8b9f0b6423cb4405f9897d175a826192af551bf30764f8',
-            path: [44, 118, 0, 0, 1],
-            bech32: 'cosmos1zt4tkl5y5mtq5u2wa4wm2z88dwu0pz258e6aqj',
-        },
-        {
-            pk: '020ed96fd39753bdcc0aab176e654165c7c86b597738a30e8b82202e84eef8f093',
-            path: [44, 118, 0, 0, 2],
-            bech32: 'cosmos1hkhu7msq5avuah83qdqrp9408hs8kk0slplvj9',
-        },
-        {
-            pk: '0398536942a89fe7a6f5dee1371ca309163952ec6c45f07d61c4a6c993db23373a',
-            path: [44, 118, 0, 0, 3],
-            bech32: 'cosmos1plsr5lx33hrwczau8cppvae0nqy5cj3rhug52y',
-        },
-        {
-            pk: '03bd0b280921e24c911389cf624eda6da93bacddbad13d23e8381e1f4d9b4966df',
-            path: [44, 118, 0, 0, 4],
-            bech32: 'cosmos1a69hjkgvm6raz0z7s6hpv4n7f3unhqt4h7rxm8',
-        },
-        {
-            pk: '0236db5773fedd060b582f9b42d838166bc6d37eeb1d1921a958634df0deab6896',
-            path: [44, 118, 0, 0, 5],
-            bech32: 'cosmos17xkagmer7mte7ycdqxda4a3xfun5pyjwvf5p69',
-        }];
-
-    const reply = await cdt.retrieveBalances(addrs);
-    console.log(reply);
-    expect(reply.length).toBe(6);
-});
-
 
 test('create delegate tx', async () => {
+    const mock = new MockAdapter(axios);
+    mock.onGet('mockNode/auth/accounts/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp').reply(
+        200,
+        {
+            value: {
+                sequence: 10,
+                account_number: 20,
+                coins: [{ amount: 15, denom: 'uatom' }, { amount: 20, denom: 'other' }],
+            },
+        },
+    );
+
     const cdt = new CosmosDelegateTool();
+    cdt.setNodeURL('mockNode');
 
     const txContext = {
         chainId: 'testing',
@@ -95,59 +164,50 @@ test('create delegate tx', async () => {
     };
 
     const validatorAddrBech32 = 'cosmosvaloper1zyp0axz2t55lxkmgrvg4vpey2rf4ratcsud07t';
-    const uAtomAmount = 100;
+    const uAtomAmount = 8765;
     const memo = 'some message';
 
-    const unsignedTx = await cdt.txCreateDelegate(txContext, validatorAddrBech32, uAtomAmount, memo);
+    const unsignedTx = await cdt.txCreateDelegate(
+        txContext,
+        validatorAddrBech32,
+        uAtomAmount,
+        memo,
+    );
 
-    console.log(unsignedTx);
-});
+    console.log(JSON.stringify(unsignedTx, null, 4));
 
-test('relay delegation tx', async () => {
-    const cdt = new CosmosDelegateTool();
+    // A call to retrieve account data is made
+    expect(mock.history.get[0].url).toEqual('mockNode/auth/accounts/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp');
 
-    const validatorAddrBech32 = 'cosmosvaloper19krh5y8y5wce3mmj3dxffyc7hgu9tsxngy0whv';
-    const uAtomAmount = 100000;
-    const memo = 'some message';
+    // txContext is kept and two new fields appear
+    expect(txContext).toHaveProperty('chainId', 'testing');
+    expect(txContext).toHaveProperty('bech32', 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp');
+    expect(txContext).toHaveProperty('accountNumber', '20');
+    expect(txContext).toHaveProperty('sequence', '10');
 
-    const txContext = {
-        chainId: 'testing',
-        bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
-        pk: '028284dfb203d9a702eb6d60ea7bcf37b7099f66d363ac024a9b249859bfb7dc3e',
-    };
-
-    // Create a delegation transaction
-    const unsignedTx = await cdt.txCreateDelegate(txContext, validatorAddrBech32, uAtomAmount, memo);
-
-    const bts = txs.getBytesToSign(unsignedTx, txContext);
-    console.log(bts);
-    console.log(bts.length);
-
-    // Sign locally using mnemonic
-    const mnemonic = 'table artist summer collect crack cruel lunar love gorilla road peanut wrestle system skirt shoulder female claim cannon price frost pole fury ranch fabric';
-    const wallet = getWallet(mnemonic);
-    expect(wallet.publicKey).toEqual(txContext.pk);
-
-    const signature = signWithMnemonic(bts, wallet);
-
-    const signedTx = txs.applySignature(unsignedTx, txContext, signature);
-
-    console.log(JSON.stringify(signedTx, null, 4));
-
-    // Now submit the transaction
-    const response = await cdt.txSubmit(signedTx);
-
-    // Print response
-    console.log(response);
-    expect('error' in unsignedTx).toEqual(false);
+    expect(unsignedTx).toHaveProperty('type', 'auth/StdTx');
+    expect(unsignedTx).toHaveProperty('value');
+    expect(unsignedTx.value).toHaveProperty('memo', 'some message');
+    expect(unsignedTx.value.msg).toHaveProperty('length', 1);
+    expect(unsignedTx.value.msg[0]).toHaveProperty('type', 'cosmos-sdk/MsgDelegate');
+    expect(unsignedTx.value.msg[0].value).toHaveProperty('amount', { amount: '8765', denom: 'uatom' });
+    expect(unsignedTx.value.msg[0].value).toHaveProperty('delegator_address', 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp');
+    expect(unsignedTx.value.msg[0].value).toHaveProperty('validator_address', 'cosmosvaloper1zyp0axz2t55lxkmgrvg4vpey2rf4ratcsud07t');
 });
 
 test('get bytes to sign', async () => {
+    const mock = new MockAdapter(axios);
+    mock.onGet('mockNode/auth/accounts/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp').reply(
+        200,
+        {},
+    );
+
     const cdt = new CosmosDelegateTool();
+    cdt.setNodeURL('mockNode');
 
     const txContext = {
         chainId: 'some_chain',
-        bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp'
+        bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
     };
 
     const dummyTx = await cdt.txCreateDelegate(
@@ -160,10 +220,132 @@ test('get bytes to sign', async () => {
     const bytesToSign = txs.getBytesToSign(dummyTx, txContext);
 
     console.log(bytesToSign);
+    console.log(mock.history);
+});
+
+test('relay delegation tx', async () => {
+    const cdt = new CosmosDelegateTool();
+    cdt.setNodeURL('mockNode');
+    const mock = new MockAdapter(axios);
+    mock.onGet('mockNode/auth/accounts/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp').reply(
+        200,
+        {
+            value: {
+                sequence: 10,
+                account_number: 20,
+                coins: [{ amount: 15, denom: 'uatom' }, { amount: 20, denom: 'other' }],
+            },
+        },
+    );
+    mock.onPost('mockNode/txs').reply(
+        200,
+        {
+            check_tx: {
+                code: 0,
+                data: 'data',
+                log: 'log',
+                gas_used: 5000,
+                gas_wanted: 10000,
+                info: 'info',
+                tags: [
+                    '',
+                    '',
+                ],
+            },
+            deliver_tx: {
+                code: 5,
+                data: 'data',
+                log: 'log',
+                gas_used: 5000,
+                gas_wanted: 10000,
+                info: 'info',
+                tags: [
+                    '',
+                    '',
+                ],
+            },
+            hash: 'EE5F3404034C524501629B56E0DDC38FAD651F04',
+            height: 0,
+        },
+    );
+
+    // ////////////////////
+
+    const validatorAddrBech32 = 'cosmosvaloper19krh5y8y5wce3mmj3dxffyc7hgu9tsxngy0whv';
+    const uAtomAmount = 100000;
+    const memo = 'some memo message';
+
+    const txContext = {
+        chainId: 'testing',
+        bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
+        pk: '028284dfb203d9a702eb6d60ea7bcf37b7099f66d363ac024a9b249859bfb7dc3e',
+    };
+
+    // Create a delegation transaction
+    const unsignedTx = await cdt.txCreateDelegate(
+        txContext,
+        validatorAddrBech32,
+        uAtomAmount,
+        memo,
+    );
+
+    // Sign locally using mnemonic
+    const mnemonic = 'table artist summer collect crack cruel '
+        + 'lunar love gorilla road peanut wrestle '
+        + 'system skirt shoulder female claim cannon '
+        + 'price frost pole fury ranch fabric';
+    const wallet = getWallet(mnemonic);
+    expect(wallet.publicKey).toEqual(txContext.pk);
+    const bts = txs.getBytesToSign(unsignedTx, txContext);
+    const signature = signWithMnemonic(bts, wallet);
+
+    // Now apply signature
+    const signedTx = txs.applySignature(unsignedTx, txContext, signature);
+
+    // And submit the transaction
+    const response = await cdt.txSubmit(signedTx);
+    console.log(JSON.stringify(response, null, 4));
+
+    // Print response
+    // console.log(response);
+    expect(response).toHaveProperty('status', 200);
+    expect('error' in unsignedTx).toEqual(false);
+
+    // check REST interactions
+    expect(mock.history.get.length).toEqual(1);
+    expect(mock.history.post.length).toEqual(1);
+    expect(mock.history.get[0].url).toEqual('mockNode/auth/accounts/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp');
+
+    // Check what was posted
+    expect(mock.history.post[0].url).toEqual('mockNode/txs');
+    expect(mock.history.post[0]).toHaveProperty('data');
+    const postData = JSON.parse(mock.history.post[0].data);
+    console.log(postData.tx.signatures);
+    expect(postData).toHaveProperty('mode', 'async');
+    expect(postData).toHaveProperty('tx');
+    expect(postData.tx).toHaveProperty('msg');
+    expect(postData.tx).toHaveProperty('fee', { amount: [], gas: '200000' });
+    expect(postData.tx).toHaveProperty('memo', 'some memo message');
+    expect(postData.tx).toHaveProperty('signatures');
+    expect(postData.tx.signatures[0]).toHaveProperty('account_number', '20');
+    expect(postData.tx.signatures[0]).toHaveProperty('sequence', '10');
+    expect(postData.tx.signatures[0]).toHaveProperty('signature',
+        'scoYRq/HVols47FggCEb+6wkkWJINuQNcgaSfRp7nogw6BE4VyubDmsOw1r1UuLewmmAlO4RwXxIt1O885ZPfQ==');
+    expect(postData.tx.signatures[0]).toHaveProperty('pub_key', {
+        type: 'tendermint/PubKeySecp256k1',
+        value: 'AoKE37ID2acC621g6nvPN7cJn2bTY6wCSpskmFm/t9w+',
+    });
 });
 
 test('get tx status - unknown', async () => {
+    const mock = new MockAdapter(axios);
+    mock.onGet('mockNode/auth/accounts/cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp').reply(
+        200,
+        {},
+    );
+
     const cdt = new CosmosDelegateTool();
+    cdt.setNodeURL('mockNode');
 
     const txHash = '0000000000000000000000000000000000000000000000000000000000000000';
     const status = await cdt.txStatus(txHash);

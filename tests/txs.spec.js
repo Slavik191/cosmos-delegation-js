@@ -17,7 +17,13 @@
 import txs from 'txs';
 
 test('create Skeleton', async () => {
-    const txSkeleton = txs.createSkeleton();
+    const txContext = {
+        accountNumber: 0,
+        sequence: 0,
+        chainId: 'test_chain',
+    };
+
+    const txSkeleton = txs.createSkeleton(txContext);
     console.log(txSkeleton);
 
     expect('type' in txSkeleton).toBe(true);
@@ -32,7 +38,7 @@ test('canonical JSON', async () => {
         chainId: 'test_chain',
     };
 
-    const tx = txs.createSkeleton();
+    const tx = txs.createSkeleton(txContext);
     const jsonStr = txs.getBytesToSign(tx, txContext);
 
     console.log(jsonStr);
@@ -42,6 +48,8 @@ test('delegate', async () => {
     const txContext = {
         bech32: 'my_addr',
         chainId: 'test_chain',
+        accountNumber: '9',
+        sequence: '7',
     };
     const txDelegation = txs.createDelegate(
         txContext,
@@ -51,7 +59,50 @@ test('delegate', async () => {
     );
 
     const jsonStr = JSON.stringify(txDelegation);
-    const expectedJsonStr = '{"type":"auth/StdTx","value":{"msg":[{"type":"cosmos-sdk/MsgDelegate","value":{"amount":{"amount":"100","denom":"stake"},"delegator_address":"my_addr","validator_address":"val_addr"}}],"fee":{"amount":[],"gas":"200000"},"memo":"some_memo","signatures":[{"signature":"N/A","account_number":"0","sequence":"0","pub_key":{"type":"tendermint/PubKeySecp256k1","value":"PK"}}]}}';
+    const expectedJsonStr = '{"type":"auth/StdTx","value":{"msg":[{"type":"cosmos-sdk/MsgDelegate","value":{"amount":{"amount":"100","denom":"uatom"},"delegator_address":"my_addr","validator_address":"val_addr"}}],"fee":{"amount":[],"gas":"200000"},"memo":"some_memo","signatures":[{"signature":"N/A","account_number":"9","sequence":"7","pub_key":{"type":"tendermint/PubKeySecp256k1","value":"PK"}}]}}';
+
+    console.log(JSON.stringify(txDelegation, null, 2));
+    expect(jsonStr).toBe(expectedJsonStr);
+});
+
+test('redelegate', async () => {
+    const txContext = {
+        bech32: 'my_addr',
+        chainId: 'test_chain',
+        accountNumber: '3',
+        sequence: '2',
+    };
+    const txDelegation = txs.createRedelegate(
+        txContext,
+        'val_addr_source',
+        'val_addr_dest',
+        100,
+        'some_memo',
+    );
+
+    const jsonStr = JSON.stringify(txDelegation);
+    const expectedJsonStr = '{"type":"auth/StdTx","value":{"msg":[{"type":"cosmos-sdk/MsgBeginRedelegate","value":{"amount":{"amount":"100","denom":"uatom"},"delegator_address":"my_addr","validator_dst_address":"val_addr_dest","validator_src_address":"val_addr_source"}}],"fee":{"amount":[],"gas":"200000"},"memo":"some_memo","signatures":[{"signature":"N/A","account_number":"3","sequence":"2","pub_key":{"type":"tendermint/PubKeySecp256k1","value":"PK"}}]}}';
+
+    console.log(JSON.stringify(txDelegation, null, 2));
+    expect(jsonStr).toBe(expectedJsonStr);
+});
+
+test('undelegate', async () => {
+    const txContext = {
+        bech32: 'my_addr',
+        chainId: 'test_chain',
+        accountNumber: '5',
+        sequence: '6',
+    };
+    const txDelegation = txs.createUndelegate(
+        txContext,
+        'val_addr',
+        100,
+        'some_memo',
+    );
+
+    const jsonStr = JSON.stringify(txDelegation);
+    const expectedJsonStr = '{"type":"auth/StdTx","value":{"msg":[{"type":"cosmos-sdk/MsgUndelegate","value":{"amount":{"amount":"100","denom":"uatom"},"delegator_address":"my_addr","validator_address":"val_addr"}}],"fee":{"amount":[],"gas":"200000"},"memo":"some_memo","signatures":[{"signature":"N/A","account_number":"5","sequence":"6","pub_key":{"type":"tendermint/PubKeySecp256k1","value":"PK"}}]}}';
 
     console.log(JSON.stringify(txDelegation, null, 2));
     expect(jsonStr).toBe(expectedJsonStr);
@@ -71,7 +122,7 @@ test('get bytes to sign', async () => {
     );
 
     const jsonStr = txs.getBytesToSign(txDelegation, txContext);
-    const expectedJsonStr = '{"account_number":"0","chain_id":"test_chain","fee":{"amount":[],"gas":"200000"},"memo":"some_memo","msgs":[{"type":"cosmos-sdk/MsgDelegate","value":{"amount":{"amount":"100","denom":"stake"},"validator_address":"val_addr"}}],"sequence":"0"}';
+    const expectedJsonStr = '{"account_number":"0","chain_id":"test_chain","fee":{"amount":[],"gas":"200000"},"memo":"some_memo","msgs":[{"type":"cosmos-sdk/MsgDelegate","value":{"amount":{"amount":"100","denom":"uatom"},"validator_address":"val_addr"}}],"sequence":"0"}';
     console.log(jsonStr);
     expect(jsonStr).toBe(expectedJsonStr);
 });

@@ -132,7 +132,7 @@ function applySignature(unsignedTx, txContext, secp256k1Sig) {
     }
 
     const tmpCopy = Object.assign({}, unsignedTx, {});
-    // TODO: Fill this info
+
     tmpCopy.value.signatures = [
         {
             signature: secp256k1Sig.toString('base64'),
@@ -149,7 +149,12 @@ function applySignature(unsignedTx, txContext, secp256k1Sig) {
 
 // Creates a new delegation tx based on the input parameters
 // the function expects a complete txContext
-function createDelegate(txContext, validatorBech32, uatomAmount, memo) {
+function createDelegate(
+    txContext,
+    validatorBech32,
+    uatomAmount,
+    memo,
+) {
     const txSkeleton = createSkeleton(txContext);
 
     const txMsg = {
@@ -172,14 +177,22 @@ function createDelegate(txContext, validatorBech32, uatomAmount, memo) {
 
 // Creates a new undelegation tx based on the input parameters
 // the function expects a complete txContext
-function createUndelegate(txContext, validatorBech32, sharesAmount, memo) {
+function createUndelegate(
+    txContext,
+    validatorBech32,
+    uatomAmount,
+    memo,
+) {
     const txSkeleton = createSkeleton(txContext);
 
     const txMsg = {
         type: 'cosmos-sdk/MsgUndelegate',
         value: {
+            amount: {
+                amount: uatomAmount.toString(),
+                denom: DEFAULT_DENOM,
+            },
             delegator_address: txContext.bech32,
-            shares: sharesAmount.toString(),
             validator_address: validatorBech32,
         },
     };
@@ -192,17 +205,23 @@ function createUndelegate(txContext, validatorBech32, sharesAmount, memo) {
 
 // Creates a new redelegation tx based on the input parameters
 // the function expects a complete txContext
-function createRedelegate(txContext,
-                          validatorSourceBech32,
-                          validatorDestBech32,
-                          sharesAmount,
-                          memo) {
+function createRedelegate(
+    txContext,
+    validatorSourceBech32,
+    validatorDestBech32,
+    uatomAmount,
+    memo,
+) {
     const txSkeleton = createSkeleton(txContext);
 
     const txMsg = {
-        type: 'cosmos-sdk/MsgUndelegate',
+        type: 'cosmos-sdk/MsgBeginRedelegate',
         value: {
-            shares_amount: sharesAmount.toString(),
+            amount: {
+                amount: uatomAmount.toString(),
+                denom: DEFAULT_DENOM,
+            },
+            delegator_address: txContext.bech32,
             validator_dst_address: validatorDestBech32,
             validator_src_address: validatorSourceBech32,
         },

@@ -50,8 +50,7 @@ workflows:
               only: /.*/
       - publish:
           requires:
-# Temporary disabling util CI has a reliable mocked REST server
-#           - test
+            - test
             - build
           filters:
             tags:

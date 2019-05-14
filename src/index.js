@@ -362,7 +362,7 @@ CosmosDelegateTool.prototype.txCreateUndelegate = async function (
         throw new Error('txContext does not contain the source address (bech32)');
     }
 
-    const accountInfo = await this.getAccountInfo(txContext.bech32);
+    const accountInfo = await this.getAccountInfo(txContext);
     txContext.accountNumber = accountInfo.accountNumber;
     txContext.sequence = accountInfo.sequence;
 
@@ -390,7 +390,7 @@ CosmosDelegateTool.prototype.txCreateRedelegate = async function (
         throw new Error('txContext does not contain the source address (bech32)');
     }
 
-    const accountInfo = await this.getAccountInfo(txContext.bech32);
+    const accountInfo = await this.getAccountInfo(txContext);
     txContext.accountNumber = accountInfo.accountNumber;
     txContext.sequence = accountInfo.sequence;
 

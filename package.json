@@ -46,7 +46,6 @@
   },
   "scripts": {
     "build": "babel src --out-dir dist",
-    "serve": "node dist/server.js",
     "test:unit": "jest -c jest.config.unit.js",
     "test:integration": "jest -c jest.config.integration.js --runInBand --detectOpenHandles"
   },

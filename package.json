@@ -28,6 +28,7 @@
     "secp256k1": "3.6.2"
   },
   "devDependencies": {
+    "@ledgerhq/hw-transport-node-hid": "^4.61.1",
     "@babel/cli": "^7.4.4",
     "@babel/core": "^7.4.4",
     "@babel/node": "^7.2.2",

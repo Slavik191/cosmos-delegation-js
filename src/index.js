@@ -13,10 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  ******************************************************************************* */
-import {
-    // eslint-disable-next-line camelcase
-    App, comm_node, comm_u2f, Tools,
-} from 'ledger-cosmos-js';
+import CosmosApp from 'ledger-cosmos-js';
+import { getBech32FromPK } from 'ledger-cosmos-js';
 import axios from 'axios';
 import Big from 'big.js';
 import secp256k1 from 'secp256k1';
@@ -24,17 +22,15 @@ import txs from './txs';
 
 const defaultHrp = 'cosmos';
 
-const CosmosDelegateTool = function () {
+const CosmosDelegateTool = function (transport) {
     // eslint-disable-next-line camelcase
-    this.comm = comm_u2f;
     this.connected = false;
 
     this.lastError = 'No error';
     this.checkAppInfo = false;
 
-    this.timeoutMS = 45000;
     this.transportDebug = false;
-
+    this.transport = transport;
     this.resturl = null;
 
     this.requiredVersionMajor = 1;
@@ -45,28 +41,6 @@ const CosmosDelegateTool = function () {
 CosmosDelegateTool.prototype.setNodeURL = function (resturl) {
     this.resturl = resturl;
 };
-
-// Switch transport to HID (useful for local testing)
-CosmosDelegateTool.prototype.switchTransportToHID = function () {
-    // eslint-disable-next-line camelcase
-    this.comm = comm_node;
-};
-
-// Switch transport to U2F (can run in browser/client side but requires HTTPS)
-CosmosDelegateTool.prototype.switchTransportToU2F = function () {
-    // eslint-disable-next-line camelcase
-    this.comm = comm_u2f;
-};
-
-// This function returns the timeout in the correct units
-// timeouts for node and U2F are expressed in different units
-function getTimeout(cdt) {
-    // eslint-disable-next-line camelcase
-    if (cdt.comm === comm_u2f) {
-        return cdt.timeoutMS / 1000;
-    }
-    return cdt.timeoutMS;
-}
 
 function wrapError(cdt, e) {
     try {
@@ -104,9 +78,7 @@ CosmosDelegateTool.prototype.connect = async function () {
     this.connected = false;
     this.lastError = null;
 
-    this.app = await this.comm
-        .create_async(getTimeout(this), this.transportDebug)
-        .then(comm => new App(comm));
+    this.app = new CosmosApp(this.transport);
 
     if (this.checkAppInfo) {
         const appInfo = await this.app.appInfo();
@@ -124,7 +96,7 @@ CosmosDelegateTool.prototype.connect = async function () {
         }
     }
 
-    const version = await this.app.get_version();
+    const version = await this.app.getVersion();
     if (version.return_code !== 0x9000) {
         this.lastError = version.error_message;
         throw new Error(version.error_message);
@@ -188,7 +160,7 @@ CosmosDelegateTool.prototype.retrieveAddress = async function (account, index) {
     return {
         pk: pk.compressed_pk.toString('hex'),
         path,
-        bech32: Tools.getBech32FromPK(defaultHrp, pk.compressed_pk),
+        bech32: getBech32FromPK(defaultHrp, pk.compressed_pk),
     };
 };
 

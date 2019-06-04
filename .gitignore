@@ -67,3 +67,4 @@ typings/
 TODO\.md
 
 \dist
+\node_modules

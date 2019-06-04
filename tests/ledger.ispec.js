@@ -15,27 +15,25 @@
  ******************************************************************************* */
 // eslint-disable-next-line import/extensions,import/no-unresolved
 import CosmosDelegateTool from 'index.js';
+import TransportNodeHid from '@ledgerhq/hw-transport-node-hid';
 
 test('connect', async () => {
-    const cdt = new CosmosDelegateTool();
+    const transport = await TransportNodeHid.create(1000);
+    const cdt = new CosmosDelegateTool(transport);
 
-    cdt.transportDebug = true;
-    cdt.switchTransportToHID();
     await cdt.connect();
 
     expect(cdt.connected).toBe(true);
-    expect(cdt.lastError).toBe('No error');
+    expect(cdt.lastError).toBe(null);
 });
 
 test('get address', async () => {
-    const cdt = new CosmosDelegateTool();
-
-    cdt.transportDebug = true;
-    cdt.switchTransportToHID();
+    const transport = await TransportNodeHid.create(1000);
+    const cdt = new CosmosDelegateTool(transport);
 
     await cdt.connect();
     expect(cdt.connected).toBe(true);
-    expect(cdt.lastError).toBe('No error');
+    expect(cdt.lastError).toBe(null);
 
     const addr = await cdt.retrieveAddress(0, 0);
     expect(addr.pk).toBe('034fef9cd7c4c63588d3b03feb5281b9d232cba34d6f3d71aee59211ffbfe1fe87');
@@ -44,39 +42,35 @@ test('get address', async () => {
 });
 
 test('get balance', async () => {
-    const cdt = new CosmosDelegateTool();
+    const transport = await TransportNodeHid.create(1000);
+    const cdt = new CosmosDelegateTool(transport);
 
     // retrieving many public keys can be slow
     jest.setTimeout(10000);
 
-    cdt.transportDebug = true;
-    cdt.switchTransportToHID();
-
     await cdt.connect();
     expect(cdt.connected).toBe(true);
-    expect(cdt.lastError).toBe('No error');
+    expect(cdt.lastError).toBe(null);
 
     const addr = await cdt.retrieveAddress(0, 0);
     expect(addr.pk).toBe('034fef9cd7c4c63588d3b03feb5281b9d232cba34d6f3d71aee59211ffbfe1fe87');
     expect(addr.bech32).toBe('cosmos1w34k53py5v5xyluazqpq65agyajavep2rflq6h');
     expect(addr.path).toEqual([44, 118, 0, 0, 0]);
 
+    cdt.setNodeURL('https://stargate.cosmos.network');
     const accountInfo = await cdt.getAccountInfo(addr);
     console.log(accountInfo);
 });
 
 test('scan addresses', async () => {
-    const cdt = new CosmosDelegateTool();
+    jest.setTimeout(45000);
 
-    // retrieving many public keys can be slow
-    jest.setTimeout(10000);
-
-    cdt.transportDebug = true;
-    cdt.switchTransportToHID();
+    const transport = await TransportNodeHid.create(5000);
+    const cdt = new CosmosDelegateTool(transport);
 
     await cdt.connect();
     expect(cdt.connected).toBe(true);
-    expect(cdt.lastError).toBe('No error');
+    expect(cdt.lastError).toBe(null);
 
     const addrs = await cdt.scanAddresses(0, 1, 2, 3);
     expect(addrs.length).toEqual(4);
@@ -98,48 +92,45 @@ test('scan addresses', async () => {
     console.log(addrs);
 });
 
-
 test('scan and get balances', async () => {
-    const cdt = new CosmosDelegateTool();
+    jest.setTimeout(45000);
 
-    // retrieving many public keys can be slow
-    jest.setTimeout(10000);
-
-    cdt.transportDebug = true;
-    cdt.switchTransportToHID();
+    const transport = await TransportNodeHid.create(1000);
+    const cdt = new CosmosDelegateTool(transport);
 
     await cdt.connect();
     expect(cdt.connected).toBe(true);
-    expect(cdt.lastError).toBe('No error');
+    expect(cdt.lastError).toBe(null);
 
     const addrs = await cdt.scanAddresses(0, 0, 2, 3);
     expect(addrs.length).toEqual(2);
 
+    cdt.setNodeURL('https://stargate.cosmos.network');
     const reply = await cdt.retrieveBalances(addrs);
 
     console.log(reply);
 });
 
 test('sign tx', async () => {
-    const cdt = new CosmosDelegateTool();
-
     // retrieving many public keys can be slow
     jest.setTimeout(45000);
 
-    cdt.transportDebug = true;
-    cdt.switchTransportToHID();
+    const transport = await TransportNodeHid.create(1000);
+    const cdt = new CosmosDelegateTool(transport);
+    cdt.setNodeURL('https://stargate.cosmos.network');
 
     await cdt.connect();
     expect(cdt.connected).toBe(true);
-    expect(cdt.lastError).toBeNull();
+    expect(cdt.lastError).toBe(null);
 
     const txContext = {
         chainId: 'some_chain',
         path: [44, 118, 0, 0, 0],
+        bech32: 'cosmos1k7ezdfu3j69npzhccs6m4hu99pydagsva0h0gp',
         pk: '034fef9cd7c4c63588d3b03feb5281b9d232cba34d6f3d71aee59211ffbfe1fe87',
     };
 
-    const dummyTx = cdt.txCreateDelegate(
+    const dummyTx = await cdt.txCreateDelegate(
         txContext,
         'validatorAddress',
         100,
@@ -147,6 +138,5 @@ test('sign tx', async () => {
     );
 
     const signedTx = await cdt.sign(dummyTx, txContext);
-
     console.log(signedTx);
 });

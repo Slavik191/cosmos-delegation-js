@@ -10,6 +10,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - run: sudo apt install build-essential libusb-1.0-0-dev
       - run: yarn install
       - run: yarn build
 
@@ -17,6 +18,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - run: sudo apt install build-essential libusb-1.0-0-dev
       - run: yarn install
       - run: yarn test:unit
 
@@ -24,6 +26,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - run: sudo apt install build-essential libusb-1.0-0-dev
       - run: yarn install
       - run: yarn build
       - run:

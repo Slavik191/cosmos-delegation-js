@@ -24,10 +24,11 @@
     "@babel/runtime": "^7.4.4",
     "axios": "^0.18.0",
     "big.js": "^5.2.2",
-    "ledger-cosmos-js": "https://github.com/cosmos/ledger-cosmos-js",
+    "ledger-cosmos-js": "^2.0.2",
     "secp256k1": "3.6.2"
   },
   "devDependencies": {
+    "@ledgerhq/hw-transport-node-hid": "^4.61.1",
     "@babel/cli": "^7.4.4",
     "@babel/core": "^7.4.4",
     "@babel/node": "^7.2.2",
@@ -46,7 +47,6 @@
   },
   "scripts": {
     "build": "babel src --out-dir dist",
-    "serve": "node dist/server.js",
     "test:unit": "jest -c jest.config.unit.js",
     "test:integration": "jest -c jest.config.integration.js --runInBand --detectOpenHandles"
   },

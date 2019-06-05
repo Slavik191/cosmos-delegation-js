@@ -84,7 +84,7 @@ CosmosDelegateTool.prototype.connect = async function () {
         const appInfo = await this.app.appInfo();
         if (appInfo.return_code !== 0x9000) {
             this.lastError = appInfo.error_message;
-            throw new Error(appInfo.error_message);
+            return false;
         }
 
         appInfo.appName = appInfo.appName || '?';
